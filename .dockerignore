@@ -6,4 +6,3 @@ dist
 .env.local
 npm-debug.log
 Dockerfile
-nginx.conf
