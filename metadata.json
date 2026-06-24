@@ -1,0 +1,6 @@
+{
+  "name": "Ronin Portfolio",
+  "description": "A sleek, minimalist cyber-samurai portfolio with white/black monochrome aesthetics, bamboo brush art, ink splatters, and project customizer.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

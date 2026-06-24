@@ -1,0 +1,21 @@
+{
+  "collections": {
+    "projects": {
+      "schema": {
+        "id": "string",
+        "title": "string",
+        "description": "string",
+        "badge": "string",
+        "category": "string",
+        "tech": "array",
+        "featured": "boolean",
+        "date": "string",
+        "image": "string"
+      },
+      "rules": {
+        "read": "any",
+        "write": "auth"
+      }
+    }
+  }
+}
