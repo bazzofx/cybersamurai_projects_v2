@@ -386,7 +386,7 @@ export default function App() {
               </div>
               <div>
                 <h1 className="font-display font-black text-base tracking-tight uppercase text-neutral-900 dark:text-neutral-100">
-                  Ronin<span className="text-transparent" style={{ WebkitTextStroke: "1px currentColor" }}>Studio</span>
+                  Projects
                 </h1>
                 <p className="text-[9px] font-mono tracking-widest text-neutral-400 dark:text-neutral-500 uppercase">
                   // PORTFOLIO MANIFESTO
@@ -440,17 +440,17 @@ export default function App() {
               {/* Theme Toggle Button */}
               <button
                 onClick={toggleTheme}
-                className="flex items-center space-x-1.5 px-3 py-1.5 border border-neutral-200 dark:border-neutral-800 hover:border-neutral-900 dark:hover:border-neutral-100 text-xs font-mono tracking-widest uppercase transition-all duration-300 rounded-xs cursor-pointer"
+                className="inline-flex items-center justify-center gap-1.5 px-2.5 xs:px-3 py-1.5 border border-neutral-200 dark:border-neutral-800 hover:border-neutral-900 dark:hover:border-neutral-100 text-xs font-mono tracking-widest uppercase transition-all duration-300 rounded-xs cursor-pointer"
                 title={`Switch to ${theme === "light" ? "Dark" : "Light"} Mode`}
               >
                 {theme === "light" ? (
                   <>
-                    <Moon className="w-3.5 h-3.5" />
+                    <Moon className="w-3.5 h-3.5 flex-shrink-0" />
                     <span className="hidden xs:inline text-[11px]">DARK_MODE</span>
                   </>
                 ) : (
                   <>
-                    <Sun className="w-3.5 h-3.5" />
+                    <Sun className="w-3.5 h-3.5 flex-shrink-0" />
                     <span className="hidden xs:inline text-[11px]">LIGHT_MODE</span>
                   </>
                 )}
@@ -465,16 +465,16 @@ export default function App() {
           <div className="flex-1 space-y-6 max-w-2xl text-center md:text-left">
             <div className="inline-flex items-center space-x-2 px-2.5 py-1 text-[10px] font-mono tracking-widest uppercase border border-neutral-200 dark:border-neutral-800 text-neutral-500 dark:text-neutral-400">
               <span className="w-1.5 h-1.5 rounded-full bg-neutral-900 dark:bg-white animate-pulse" />
-              <span>STRICT OFF-LINE PERSISTENCE ACTIVE</span>
+              <span>Live Projects by Cyber Samurai</span>
             </div>
 
             <div>
               <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black tracking-tighter uppercase leading-none text-neutral-900 dark:text-white">
-                Ronin<span className="text-transparent" style={{ WebkitTextStroke: "1px currentColor" }}>Studio</span>
+                Projects
               </h2>
               <div className="mt-3 flex items-center gap-4">
                 <div className="h-[1px] w-12 bg-neutral-900 dark:bg-neutral-100"></div>
-                <p className="text-[11px] uppercase tracking-[0.4em] font-medium text-neutral-500 dark:text-neutral-400">Web Craftsman & Creative Developer</p>
+                <p className="text-[11px] uppercase tracking-[0.4em] font-medium text-neutral-500 dark:text-neutral-400">Security by Design</p>
               </div>
             </div>
 
@@ -487,11 +487,11 @@ export default function App() {
             {/* Small action buttons */}
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 pt-2">
               <a
-                href="#virtues-codex"
+                href="#bushido"
                 className="inline-flex items-center space-x-2 px-4 py-2.5 text-xs font-mono uppercase tracking-widest border border-neutral-200 dark:border-neutral-800 hover:border-neutral-900 dark:hover:border-neutral-100 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors rounded-xs"
               >
                 <BookOpen className="w-3.5 h-3.5" />
-                <span>VIRTUES CODEX</span>
+                <span>BUSHIDO</span>
               </a>
             </div>
           </div>
@@ -915,7 +915,7 @@ export default function App() {
 
         {/* Virtues Codex Section */}
         <section
-          id="virtues-codex"
+          id="bushido"
           className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 border-t border-neutral-100 dark:border-neutral-900 w-full relative overflow-hidden"
         >
           {/* Falling Cherry Blossom Petals Background Animation */}
@@ -955,7 +955,7 @@ export default function App() {
           <div className="relative z-10 text-center md:text-left mb-10">
             <span className="text-[10px] font-mono tracking-widest text-neutral-400 uppercase">// CODE OF THE CHERRY BLOSSOM</span>
             <h3 className="font-display text-2xl font-bold uppercase tracking-tight text-neutral-900 dark:text-white">
-              THE SEVEN VIRTUES OF THE DIGITAL RONIN
+              Our Bushido is the code we live by
             </h3>
             <p className="text-xs text-neutral-500 font-sans mt-1">
               Each virtue blooms as a golden flower on our tree. Tap a flower to reveal its deep philosophical code.

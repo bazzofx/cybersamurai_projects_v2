@@ -143,11 +143,11 @@ export const BUSHIDO_QUOTES: ZenQuote[] = [
 ];
 
 export const BUSHIDO_VIRTUES = [
-  { kanji: "義", romaji: "Gi", meaning: "Rectitude & Justice", description: "Be acutely honest in your dealings with all people. Believe in justice, not from other people, but from yourself." },
-  { kanji: "勇", romaji: "Yu", meaning: "Heroic Courage", description: "Rise up above the masses that fear to act. Hiding in a shell like a turtle is not living at all." },
-  { kanji: "仁", romaji: "Jin", meaning: "Benevolence & Compassion", description: "Through intense training and discipline the samurai becomes quick and strong. They must use this power for good." },
-  { kanji: "礼", romaji: "Rei", meaning: "Polite Respect", description: "Samurai have no reason to be cruel. They do not need to prove their strength. Courtesy is the mark of strength." },
-  { kanji: "誠", romaji: "Makoto", meaning: "Honesty & Sincerity", description: "When a samurai has said they will perform an action, it is as good as done. Speaking and doing are the same action." },
-  { kanji: "名", romaji: "Meiyo", meaning: "Honor", description: "The only judge of a samurai's honor is themselves. Decisions you make and how these decisions are carried out are a reflection of who you truly are." },
-  { kanji: "忠", romaji: "Chugi", meaning: "Duty & Loyalty", description: "To those they are responsible for, they remain fiercely true. In code, stay true to the craft and clean design." }
+  { kanji: "義", romaji: "Gi", meaning: "Rectitude & Justice", description: "We design secure code as our fundamental professional duty. Protecting client infrastructure and user data from vulnerabilities is our highest standard of justice." },
+  { kanji: "勇", romaji: "Yu", meaning: "Heroic Courage", description: "We design clean code and tackle complex architectural challenges head-on. We have the courage to write modular, maintainable logic rather than taking easy shortcuts." },
+  { kanji: "仁", romaji: "Jin", meaning: "Benevolence & Compassion", description: "We are friendly, open-minded, and collaborative. We put ourselves in our clients' shoes to truly understand their needs and craft compassionate digital solutions." },
+  { kanji: "礼", romaji: "Rei", meaning: "Polite Respect", description: "We treat our clients as partners. Respect means delivering transparent progress, modular implementations, and clean documentation that respects your time." },
+  { kanji: "誠", romaji: "Makoto", meaning: "Honesty & Sincerity", description: "When we commit to a scope or milestone, it is as good as done. Speaking and doing are the same action; we maintain complete honesty in timeline forecasts." },
+  { kanji: "名", romaji: "Meiyo", meaning: "Honor", description: "We take great pride in our architectural craftsmanship. Our decisions and the performance of our software are a direct reflection of our professional honor." },
+  { kanji: "忠", romaji: "Chugi", meaning: "Duty & Loyalty", description: "We always work to the client's absolute satisfaction. We remain loyal to your product's success, offering optimization, responsiveness, and ongoing support." }
 ];
