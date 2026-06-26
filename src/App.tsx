@@ -1455,7 +1455,7 @@ export default function App() {
               </div>
 
               <div className="space-y-6 relative z-10 max-w-lg">
-                <span className="text-[10px] font-mono tracking-widest text-neutral-400 uppercase">[ ACTIVE CODEX DIRECTIVE ]</span>
+                <span className="text-[10px] font-mono tracking-widest text-neutral-400">[ {selectedVirtue.japaneseTitle} ]</span>
                 <div className="space-y-2">
                   <h4 className="font-display text-4xl font-extrabold uppercase tracking-tight text-neutral-900 dark:text-white">
                     {selectedVirtue.romaji}
