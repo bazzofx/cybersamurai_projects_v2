@@ -595,8 +595,30 @@ export default function App() {
             <div
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={() => setIsHovered(false)}
-              className="relative overflow-hidden w-full"
+              className="relative w-full group/carousel"
             >
+              {/* Left Navigation Arrow */}
+              {activeFeaturedProjects.length > 1 && (
+                <button
+                  onClick={handlePrevFeatured}
+                  className="absolute left-2 md:-left-6 top-1/2 -translate-y-1/2 z-40 p-2.5 rounded-full border border-neutral-200 dark:border-neutral-800 bg-white/90 dark:bg-black/90 text-neutral-800 dark:text-neutral-200 hover:bg-neutral-950 hover:text-white dark:hover:bg-neutral-100 dark:hover:text-black transition-all duration-200 shadow-md md:opacity-0 md:group-hover/carousel:opacity-100 cursor-pointer active:scale-95 flex items-center justify-center"
+                  title="Previous Project"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+              )}
+
+              {/* Right Navigation Arrow */}
+              {activeFeaturedProjects.length > 1 && (
+                <button
+                  onClick={handleNextFeatured}
+                  className="absolute right-2 md:-right-6 top-1/2 -translate-y-1/2 z-40 p-2.5 rounded-full border border-neutral-200 dark:border-neutral-800 bg-white/90 dark:bg-black/90 text-neutral-800 dark:text-neutral-200 hover:bg-neutral-950 hover:text-white dark:hover:bg-neutral-100 dark:hover:text-black transition-all duration-200 shadow-md md:opacity-0 md:group-hover/carousel:opacity-100 cursor-pointer active:scale-95 flex items-center justify-center"
+                  title="Next Project"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              )}
+
               <BambooFrame isFeatured={true} className="w-full">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch relative min-h-[380px] lg:min-h-[420px]">
                   
@@ -650,7 +672,7 @@ export default function App() {
                                   rel="noopener noreferrer"
                                   className="inline-flex items-center space-x-2 px-5 py-2 text-xs font-mono font-semibold tracking-wider uppercase border border-neutral-950 dark:border-neutral-100 bg-neutral-950 text-white dark:bg-neutral-100 dark:text-black hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-all duration-150 rounded-xs"
                                 >
-                                  <span>RUN APPLICATION</span>
+                                  <span>OPEN APPLICATION</span>
                                   <ArrowUpRight className="w-3.5 h-3.5" />
                                 </a>
                               )}
@@ -672,7 +694,7 @@ export default function App() {
                                   className="px-3 py-2 text-xs font-mono uppercase tracking-wider border border-neutral-200 dark:border-neutral-800 hover:border-neutral-900 dark:hover:border-neutral-200 text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors ml-auto cursor-pointer"
                                   title="Edit project specs"
                                 >
-                                  RE-FORGE
+                                  EDIT
                                 </button>
                               )}
                             </div>
