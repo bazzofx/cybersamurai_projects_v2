@@ -112,7 +112,7 @@ export function ProjectCard({ project, onEdit, onDelete, isAdmin }: ProjectCardP
                   className="inline-flex items-center space-x-1 px-2.5 py-1 text-[11px] font-mono font-medium tracking-wide uppercase border border-neutral-900 dark:border-neutral-100 bg-neutral-900 text-white dark:bg-neutral-100 dark:text-black hover:bg-neutral-800 dark:hover:bg-neutral-200 active:scale-95 transition-all duration-150 rounded-xs"
                 >
                   <Eye className="w-3 h-3" />
-                  <span>Demo</span>
+                  <span>Open</span>
                 </a>
               )}
               {project.codeUrl && (

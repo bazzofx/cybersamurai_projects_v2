@@ -26,21 +26,23 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
-// Firebase imports
+// Firebase & Services imports
 import { 
-  auth, 
-  db, 
-  getEmailForUsername, 
-  fetchProjectsFromFirestore, 
   saveProjectToFirestore, 
-  deleteProjectFromFirestore 
+  deleteProjectFromFirestore,
+  fetchProjectsFromFirestore
 } from "./firebase";
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  onAuthStateChanged, 
-  signOut 
-} from "firebase/auth";
+import {
+  login,
+  logout,
+  subscribeToAuthChanges
+} from "./services/authService";
+import {
+  validateAndSeedProjects,
+  resetProjects,
+  getLocalStorageProjects,
+  saveLocalStorageProjects
+} from "./services/projectService";
 
 export default function App() {
   // --- Persistent Dark/Light Mode state ---
@@ -95,7 +97,7 @@ export default function App() {
 
   // Real-time Firebase Auth listener
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = subscribeToAuthChanges((user) => {
       if (user) {
         setIsAdmin(true);
         setAdminUser(user);
@@ -107,69 +109,23 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Fetch projects from Firestore on mount
+  // Fetch projects on mount
   useEffect(() => {
     let active = true;
     async function loadData() {
       try {
         setIsLoadingProjects(true);
         const data = await fetchProjectsFromFirestore();
+        const finalProjects = await validateAndSeedProjects(data);
         if (active) {
-          const hasNewProjects = data.some(p => p.id === "cyber-siege");
-          const hasLegacyBadges = data.some(p => p.badge === "SHOGUN" || p.badge === "SAMURAI" || p.badge === "RONIN" || p.badge === "SHINOBI" || p.badge === "SABER" as any);
-          if (data.length === 0 || !hasNewProjects || hasLegacyBadges) {
-            console.log("Seeding INITIAL_PROJECTS...");
-            // Clean up old ones if they exist
-            for (const p of data) {
-              try {
-                await deleteProjectFromFirestore(p.id);
-              } catch (e) {
-                console.error("Error deleting project during seeding:", p.id, e);
-              }
-            }
-            // Seed new ones
-            for (const p of INITIAL_PROJECTS) {
-              await saveProjectToFirestore(p);
-            }
-            const seededData = await fetchProjectsFromFirestore();
-            setProjects(seededData.length > 0 ? seededData : INITIAL_PROJECTS);
-          } else {
-            // Check if any of our screenshot projects are missing, and seed them
-            const missing = INITIAL_PROJECTS.filter(ip => !data.some(dp => dp.id === ip.id));
-            if (missing.length > 0) {
-              for (const p of missing) {
-                await saveProjectToFirestore(p);
-              }
-              const updatedData = await fetchProjectsFromFirestore();
-              setProjects(updatedData);
-            } else {
-              setProjects(data);
-            }
-          }
+          setProjects(finalProjects);
           setFirebaseError("");
         }
       } catch (err: any) {
         console.error("Error fetching projects from Firestore:", err);
         if (active) {
           setFirebaseError("Using offline mock copy");
-          // Fallback to local replica if firestore fails
-          const stored = localStorage.getItem("ronin_projects");
-          if (stored) {
-            try {
-              const parsed = JSON.parse(stored);
-              const hasNewProjects = parsed.some((p: any) => p.id === "cyber-siege");
-              const hasLegacyBadges = parsed.some((p: any) => p.badge === "SHOGUN" || p.badge === "SAMURAI" || p.badge === "RONIN" || p.badge === "SHINOBI" || p.badge === "SABER");
-              if (!hasNewProjects || hasLegacyBadges) {
-                setProjects(INITIAL_PROJECTS);
-              } else {
-                setProjects(parsed);
-              }
-            } catch (e) {
-              setProjects(INITIAL_PROJECTS);
-            }
-          } else {
-            setProjects(INITIAL_PROJECTS);
-          }
+          setProjects(getLocalStorageProjects());
         }
       } finally {
         if (active) {
@@ -186,7 +142,7 @@ export default function App() {
   // Back up state locally as a safe local replica
   useEffect(() => {
     if (!isLoadingProjects) {
-      localStorage.setItem("ronin_projects", JSON.stringify(projects));
+      saveLocalStorageProjects(projects);
     }
   }, [projects, isLoadingProjects]);
 
@@ -217,9 +173,7 @@ export default function App() {
 
     try {
       setPasscodeError("");
-      const email = getEmailForUsername(cleanUsername);
-
-      await signInWithEmailAndPassword(auth, email, cleanPassword);
+      await login(cleanUsername, cleanPassword);
       setShowPasscodeModal(false);
       setPasscodeInput("");
     } catch (err: any) {
@@ -239,7 +193,7 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
+      await logout();
     } catch (err) {
       console.error("Sign out error:", err);
     }
@@ -316,27 +270,13 @@ export default function App() {
     }
     try {
       setIsLoadingProjects(true);
-      // Clear Firestore projects first
-      for (const p of projects) {
-        try {
-          await deleteProjectFromFirestore(p.id);
-        } catch (e) {
-          console.error("Failed to delete project during reset:", p.id, e);
-        }
-      }
-      // Re-seed original INITIAL_PROJECTS
-      for (const p of INITIAL_PROJECTS) {
-        try {
-          await saveProjectToFirestore(p);
-        } catch (e) {
-          console.error("Failed to save project during reset:", p.id, e);
-        }
-      }
+      const defaultProjects = await resetProjects(projects);
+      setProjects(defaultProjects);
     } catch (err) {
       console.error("Firestore sync failure during reset:", err);
+      setProjects(INITIAL_PROJECTS);
     } finally {
       // Always reset local state to INITIAL_PROJECTS
-      setProjects(INITIAL_PROJECTS);
       setActiveCategory("ALL");
       setShowConfirmRestore(false);
       setIsLoadingProjects(false);
@@ -558,32 +498,23 @@ export default function App() {
 
           {/* Right Hero: Giant Calligraphic Monogram & Live Stats */}
           <div className="w-full md:w-80 flex flex-col space-y-4">
-            <div className="relative border border-neutral-200 dark:border-neutral-800 p-6 bg-neutral-50/50 dark:bg-neutral-950/20 backdrop-blur-xs flex flex-col justify-between h-56 group overflow-hidden">
-              {/* Background watermark */}
-              <div className="absolute right-0 bottom-0 translate-y-4 translate-x-4 text-9xl font-display font-black text-neutral-100 dark:text-neutral-950 pointer-events-none select-none transition-transform duration-700 group-hover:scale-105">
+            <div className="relative border border-neutral-200 dark:border-neutral-800 p-6 bg-neutral-50/50 dark:bg-neutral-950/20 backdrop-blur-xs flex flex-col justify-between h-56 group overflow-hidden z-0">
+              {/* Background watermark - sent backwards, color opposite of background */}
+              <div className="absolute right-0 bottom-0 translate-y-4 translate-x-4 text-9xl font-display font-black text-black/10 dark:text-white/10 pointer-events-none select-none transition-transform duration-700 group-hover:scale-105 z-[-1]">
                 武
               </div>
 
-              <div>
-                <span className="text-[10px] font-mono tracking-widest text-neutral-400 uppercase">// ACTIVE ARSENAL STATS</span>
-                <div className="mt-4 grid grid-cols-2 gap-4 relative z-10">
-                  <div>
-                    <p className="text-3xl font-display font-bold">{projects.length}</p>
-                    <p className="text-[9px] font-mono text-neutral-400 uppercase tracking-wider">PROJECTS IN BLADE</p>
-                  </div>
-                  <div>
-                    <p className="text-3xl font-display font-bold">
-                      {projects.filter((p) => p.badge === "SAMURAI" || p.badge === "SHOGUN").length}
-                    </p>
-                    <p className="text-[9px] font-mono text-neutral-400 uppercase tracking-wider">ELITE GRADES</p>
-                  </div>
+              <div className="relative z-10">
+                <span className="text-[10px] font-mono tracking-widest text-neutral-400 uppercase">// DEPLOYED PROJECTS</span>
+                <div className="mt-5">
+                  <p className="text-5xl font-display font-bold text-neutral-900 dark:text-white leading-none">{projects.length}</p>
+                  <p className="text-[9px] font-mono text-neutral-400 uppercase tracking-wider mt-2.5">PROJECTS IN BLADE</p>
                 </div>
               </div>
 
               {/* Micro code line snippet */}
-              <div className="border-t border-neutral-200 dark:border-neutral-800 pt-4 text-[9px] font-mono text-neutral-500 dark:text-neutral-400 flex items-center justify-between">
+              <div className="border-t border-neutral-200 dark:border-neutral-800 pt-4 text-[9px] font-mono text-neutral-500 dark:text-neutral-400 flex items-center relative z-10">
                 <span>SYSTEM: COMPLIANT</span>
-                <span>UTC: {new Date().toISOString().slice(11, 19)}</span>
               </div>
             </div>
 
@@ -1602,18 +1533,15 @@ export default function App() {
                     </div>
                     <span className="text-[10px] font-mono tracking-widest text-red-600 dark:text-red-400 uppercase font-bold">// SECURE SHIELD AUTHENTICATION</span>
                     <h3 className="font-display text-xl font-bold uppercase tracking-tight text-neutral-900 dark:text-white">
-                      ADMINISTRATOR COMMAND
+                      SECURE ZONE
                     </h3>
-                    <p className="text-xs text-neutral-500 dark:text-neutral-400 max-w-xs leading-relaxed font-sans">
-                      Authenticating grants write permissions to forge, edit, and discard creations.
-                    </p>
                   </div>
 
                   {/* Input fields */}
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <label className="block text-[10px] font-mono uppercase tracking-widest text-neutral-400 dark:text-neutral-500">
-                        Admin Username
+                        Username
                       </label>
                       <input
                         type="text"
@@ -1622,7 +1550,7 @@ export default function App() {
                           setUsernameInput(e.target.value);
                           setPasscodeError("");
                         }}
-                        placeholder="e.g. kimkapuan23"
+                        placeholder="///////"
                         className="w-full px-3.5 py-2.5 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 text-neutral-900 dark:text-white text-sm font-mono tracking-wider rounded-xs focus:outline-hidden focus:border-neutral-900 dark:focus:border-white transition-colors"
                       />
                     </div>
