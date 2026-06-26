@@ -10,7 +10,7 @@ interface ProjectModalProps {
   projectToEdit?: Project | null;
 }
 
-const BADGES: Project["badge"][] = ["SAMURAI", "SHINOBI", "SHOGUN", "RONIN", "SABER"];
+const BADGES: Project["badge"][] = ["Red Team", "Blue Team", "Automation", "Cyber Games", "Architecture"];
 
 export function ProjectModal({ isOpen, onClose, onSave, projectToEdit }: ProjectModalProps) {
   const [title, setTitle] = useState("");
@@ -19,7 +19,7 @@ export function ProjectModal({ isOpen, onClose, onSave, projectToEdit }: Project
   const [role, setRole] = useState("");
   const [demoUrl, setDemoUrl] = useState("");
   const [codeUrl, setCodeUrl] = useState("");
-  const [badge, setBadge] = useState<Project["badge"]>("RONIN");
+  const [badge, setBadge] = useState<Project["badge"]>("Cyber Games");
   const [techInput, setTechInput] = useState("");
   const [techList, setTechList] = useState<string[]>([]);
   const [featured, setFeatured] = useState(false);
@@ -49,10 +49,10 @@ export function ProjectModal({ isOpen, onClose, onSave, projectToEdit }: Project
       setTitle("");
       setDescription("");
       setCategory("");
-      setRole("Solo Ronin");
+      setRole("Solo Developer");
       setDemoUrl("https://");
       setCodeUrl("https://github.com/");
-      setBadge("RONIN");
+      setBadge("Cyber Games");
       setTechList(["React", "TypeScript", "Tailwind CSS"]);
       setTechInput("");
       setFeatured(false);
@@ -176,7 +176,7 @@ export function ProjectModal({ isOpen, onClose, onSave, projectToEdit }: Project
         <div className="flex items-center justify-between border-b border-neutral-200 dark:border-neutral-800 pb-4 mb-6">
           <div>
             <span className="text-[10px] font-mono tracking-widest text-neutral-400 uppercase">
-              {projectToEdit ? "// UPDATE SHINOBI WORK" : "// FORGE NEW WEAPON"}
+              {projectToEdit ? "// UPDATE SHINOBI WORK" : "// FORGE NEW PROJECT"}
             </span>
             <h2 className="font-display text-xl md:text-2xl font-bold uppercase tracking-tight">
               {projectToEdit ? "Edit Application" : "Enlist Project"}

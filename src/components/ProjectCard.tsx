@@ -15,11 +15,11 @@ export function ProjectCard({ project, onEdit, onDelete, isAdmin }: ProjectCardP
   const [isConfirming, setIsConfirming] = useState(false);
   // Map badges to specific styling or symbols
   const badgeIcons: Record<string, string> = {
-    SAMURAI: "⚔️",
-    SHINOBI: "👥",
-    SHOGUN: "🏯",
-    RONIN: "🍃",
-    SABER: "⚡"
+    "Red Team": "🔴",
+    "Blue Team": "🔵",
+    Automation: "🤖",
+    "Cyber Games": "🎮",
+    Architecture: "🏛️"
   };
 
   return (

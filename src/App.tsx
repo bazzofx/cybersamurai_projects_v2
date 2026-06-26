@@ -115,16 +115,36 @@ export default function App() {
         setIsLoadingProjects(true);
         const data = await fetchProjectsFromFirestore();
         if (active) {
-          if (data.length === 0) {
-            console.log("Firestore empty. Seeding INITIAL_PROJECTS...");
+          const hasNewProjects = data.some(p => p.id === "cyber-siege");
+          const hasLegacyBadges = data.some(p => p.badge === "SHOGUN" || p.badge === "SAMURAI" || p.badge === "RONIN" || p.badge === "SHINOBI" || p.badge === "SABER" as any);
+          if (data.length === 0 || !hasNewProjects || hasLegacyBadges) {
+            console.log("Seeding INITIAL_PROJECTS...");
+            // Clean up old ones if they exist
+            for (const p of data) {
+              try {
+                await deleteProjectFromFirestore(p.id);
+              } catch (e) {
+                console.error("Error deleting project during seeding:", p.id, e);
+              }
+            }
+            // Seed new ones
             for (const p of INITIAL_PROJECTS) {
               await saveProjectToFirestore(p);
             }
             const seededData = await fetchProjectsFromFirestore();
-            setProjects(seededData);
+            setProjects(seededData.length > 0 ? seededData : INITIAL_PROJECTS);
           } else {
-            // Sort by a standard deterministic property or custom order
-            setProjects(data);
+            // Check if any of our screenshot projects are missing, and seed them
+            const missing = INITIAL_PROJECTS.filter(ip => !data.some(dp => dp.id === ip.id));
+            if (missing.length > 0) {
+              for (const p of missing) {
+                await saveProjectToFirestore(p);
+              }
+              const updatedData = await fetchProjectsFromFirestore();
+              setProjects(updatedData);
+            } else {
+              setProjects(data);
+            }
           }
           setFirebaseError("");
         }
@@ -136,7 +156,14 @@ export default function App() {
           const stored = localStorage.getItem("ronin_projects");
           if (stored) {
             try {
-              setProjects(JSON.parse(stored));
+              const parsed = JSON.parse(stored);
+              const hasNewProjects = parsed.some((p: any) => p.id === "cyber-siege");
+              const hasLegacyBadges = parsed.some((p: any) => p.badge === "SHOGUN" || p.badge === "SAMURAI" || p.badge === "RONIN" || p.badge === "SHINOBI" || p.badge === "SABER");
+              if (!hasNewProjects || hasLegacyBadges) {
+                setProjects(INITIAL_PROJECTS);
+              } else {
+                setProjects(parsed);
+              }
             } catch (e) {
               setProjects(INITIAL_PROJECTS);
             }
@@ -158,10 +185,10 @@ export default function App() {
 
   // Back up state locally as a safe local replica
   useEffect(() => {
-    if (projects.length > 0) {
+    if (!isLoadingProjects) {
       localStorage.setItem("ronin_projects", JSON.stringify(projects));
     }
-  }, [projects]);
+  }, [projects, isLoadingProjects]);
 
   const toggleTheme = () => {
     setTheme((prev) => (prev === "light" ? "dark" : "light"));
@@ -227,17 +254,20 @@ export default function App() {
     }
     try {
       await saveProjectToFirestore(savedProject);
-      if (editingProject) {
-        // Edit
-        setProjects((prev) => prev.map((p) => (p.id === savedProject.id ? savedProject : p)));
-      } else {
-        // Create new
-        setProjects((prev) => [savedProject, ...prev]);
-      }
-      setEditingProject(null);
     } catch (err) {
       console.error("Firestore sync failure during save:", err);
+      setFirebaseError("Offline sync failed - local update only");
     }
+    
+    // Always update local state
+    if (editingProject) {
+      // Edit
+      setProjects((prev) => prev.map((p) => (p.id === savedProject.id ? savedProject : p)));
+    } else {
+      // Create new
+      setProjects((prev) => [savedProject, ...prev]);
+    }
+    setEditingProject(null);
   };
 
   const handleEditProject = (project: Project) => {
@@ -256,10 +286,12 @@ export default function App() {
     }
     try {
       await deleteProjectFromFirestore(id);
-      setProjects((prev) => prev.filter((p) => p.id !== id));
     } catch (err) {
       console.error("Firestore sync failure during delete:", err);
+      setFirebaseError("Offline sync failed - local update only");
     }
+    // Always filter out from local state so the UI responds immediately!
+    setProjects((prev) => prev.filter((p) => p.id !== id));
   };
 
   const handleAddNewClick = () => {
@@ -286,18 +318,27 @@ export default function App() {
       setIsLoadingProjects(true);
       // Clear Firestore projects first
       for (const p of projects) {
-        await deleteProjectFromFirestore(p.id);
+        try {
+          await deleteProjectFromFirestore(p.id);
+        } catch (e) {
+          console.error("Failed to delete project during reset:", p.id, e);
+        }
       }
       // Re-seed original INITIAL_PROJECTS
       for (const p of INITIAL_PROJECTS) {
-        await saveProjectToFirestore(p);
+        try {
+          await saveProjectToFirestore(p);
+        } catch (e) {
+          console.error("Failed to save project during reset:", p.id, e);
+        }
       }
-      setProjects(INITIAL_PROJECTS);
-      setActiveCategory("ALL");
-      setShowConfirmRestore(false);
     } catch (err) {
       console.error("Firestore sync failure during reset:", err);
     } finally {
+      // Always reset local state to INITIAL_PROJECTS
+      setProjects(INITIAL_PROJECTS);
+      setActiveCategory("ALL");
+      setShowConfirmRestore(false);
       setIsLoadingProjects(false);
     }
   };
@@ -313,8 +354,7 @@ export default function App() {
 
   const featuredProjects = projects.filter((p) => p.featured);
   const activeFeaturedProjects = featuredProjects.length > 0 ? featuredProjects : (projects.length > 0 ? [projects[0]] : []);
-  const featuredIds = new Set(activeFeaturedProjects.map((p) => p.id));
-  const regularProjects = filteredProjects.filter((p) => !featuredIds.has(p.id));
+  const regularProjects = filteredProjects;
 
   // Safeguard carouselIndex against out-of-bounds errors (e.g. if projects are unpinned)
   useEffect(() => {
@@ -571,7 +611,7 @@ export default function App() {
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
               <div>
                 <span className="text-[10px] font-mono tracking-widest text-neutral-400 uppercase">// SUPREME WORKPIECE CAROUSEL</span>
-                <h3 className="font-display text-2xl font-bold uppercase tracking-tight">FEATURED WEAPONS OF CHOICE</h3>
+                <h3 className="font-display text-2xl font-bold uppercase tracking-tight">FEATURED PROJECTS OF CHOICE</h3>
               </div>
               
               {/* Carousel Indicators & Controls */}
@@ -733,8 +773,8 @@ export default function App() {
                               <div className="absolute inset-0 bg-neutral-950/15 dark:bg-neutral-950/30 mix-blend-multiply" />
                               
                               <div className="absolute bottom-4 right-4 text-right flex flex-col items-end bg-black/75 backdrop-blur-xs px-2.5 py-1.5 border border-neutral-800 rounded-xs select-none">
-                                <span className="text-[7px] font-mono tracking-widest text-neutral-400">ARTIFACT VERIFIED</span>
-                                <span className="text-[9px] font-mono text-emerald-400 uppercase font-bold">[ CERTIFIED ]</span>
+                                <span className="text-[7px] font-mono tracking-widest text-neutral-400">PROJECT STATUS</span>
+                                <span className="text-[9px] font-mono text-emerald-400 uppercase font-bold">[ COMPLETED ]</span>
                               </div>
                               
                               <div className="absolute bottom-4 left-4 bg-black/75 backdrop-blur-xs px-2.5 py-1.5 border border-neutral-800 rounded-xs select-none">
@@ -841,7 +881,7 @@ export default function App() {
                       : "border-neutral-200 dark:border-neutral-800 hover:border-neutral-900 dark:hover:border-neutral-400 text-neutral-500 dark:text-neutral-400"
                   }`}
                 >
-                  {cat === "ALL" ? "ALL WEAPONS" : cat.toUpperCase()}
+                  {cat === "ALL" ? "ALL PROJECTS" : cat.toUpperCase()}
                 </button>
               ))}
             </div>
