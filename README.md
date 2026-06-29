@@ -2,7 +2,7 @@
 <img width="1200" height="475" alt="Cyber Samurai" src="public/portfolio/hero.jpg" />
 </div>
 
-## Run Locally
+## Project Portfolio
 
 **Prerequisites:**  Node.js
 
