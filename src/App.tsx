@@ -35,9 +35,6 @@ import {
   auth, 
   db, 
   getEmailForUsername, 
-  fetchProjectsFromFirestore, 
-  saveProjectToFirestore, 
-  deleteProjectFromFirestore,
   fetchUsersFromFirestore,
   saveUserToFirestore,
   getUserFromFirestore,
@@ -136,43 +133,35 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Fetch projects from Firestore on mount & seed default admins
+  // Load projects from local storage on mount & seed default admins in Firestore
   useEffect(() => {
     let active = true;
     async function loadDataAndSeed() {
       try {
-        // Seed users directory
+        // Seed users directory (kept for live admin roles lookup in Firestore)
         await seedUsersInFirestore();
+      } catch (err) {
+        console.error("Error seeding users:", err);
+      }
 
-        setIsLoadingProjects(true);
-        const data = await fetchProjectsFromFirestore();
-        if (active) {
-          if (data.length === 0) {
-            console.log("Firestore empty. Seeding INITIAL_PROJECTS...");
-            for (const p of INITIAL_PROJECTS) {
-              await saveProjectToFirestore(p);
-            }
-            const seededData = await fetchProjectsFromFirestore();
-            setProjects(seededData);
-          } else {
-            setProjects(data);
+      setIsLoadingProjects(true);
+      try {
+        const stored = localStorage.getItem("ronin_projects");
+        if (stored && active) {
+          try {
+            setProjects(JSON.parse(stored));
+          } catch (e) {
+            setProjects(INITIAL_PROJECTS);
+            localStorage.setItem("ronin_projects", JSON.stringify(INITIAL_PROJECTS));
           }
-          setFirebaseError("");
+        } else if (active) {
+          setProjects(INITIAL_PROJECTS);
+          localStorage.setItem("ronin_projects", JSON.stringify(INITIAL_PROJECTS));
         }
       } catch (err: any) {
-        console.error("Error fetching projects from Firestore:", err);
+        console.error("Error loading local projects:", err);
         if (active) {
-          setFirebaseError("Using offline mock copy");
-          const stored = localStorage.getItem("ronin_projects");
-          if (stored) {
-            try {
-              setProjects(JSON.parse(stored));
-            } catch (e) {
-              setProjects(INITIAL_PROJECTS);
-            }
-          } else {
-            setProjects(INITIAL_PROJECTS);
-          }
+          setProjects(INITIAL_PROJECTS);
         }
       } finally {
         if (active) {
@@ -298,24 +287,19 @@ export default function App() {
 
 
   // --- Project Handlers ---
-  const handleSaveProject = async (savedProject: Project) => {
+  const handleSaveProject = (savedProject: Project) => {
     if (!isAdmin) {
       setShowPasscodeModal(true);
       return;
     }
-    try {
-      await saveProjectToFirestore(savedProject);
-      if (editingProject) {
-        // Edit
-        setProjects((prev) => prev.map((p) => (p.id === savedProject.id ? savedProject : p)));
-      } else {
-        // Create new
-        setProjects((prev) => [savedProject, ...prev]);
-      }
-      setEditingProject(null);
-    } catch (err) {
-      console.error("Firestore sync failure during save:", err);
-    }
+    setProjects((prev) => {
+      const updated = editingProject 
+        ? prev.map((p) => (p.id === savedProject.id ? savedProject : p))
+        : [savedProject, ...prev];
+      localStorage.setItem("ronin_projects", JSON.stringify(updated));
+      return updated;
+    });
+    setEditingProject(null);
   };
 
   const handleEditProject = (project: Project) => {
@@ -327,17 +311,16 @@ export default function App() {
     setIsModalOpen(true);
   };
 
-  const handleDeleteProject = async (id: string) => {
+  const handleDeleteProject = (id: string) => {
     if (!isAdmin) {
       setShowPasscodeModal(true);
       return;
     }
-    try {
-      await deleteProjectFromFirestore(id);
-      setProjects((prev) => prev.filter((p) => p.id !== id));
-    } catch (err) {
-      console.error("Firestore sync failure during delete:", err);
-    }
+    setProjects((prev) => {
+      const updated = prev.filter((p) => p.id !== id);
+      localStorage.setItem("ronin_projects", JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const handleAddNewClick = () => {
@@ -349,7 +332,7 @@ export default function App() {
     setIsModalOpen(true);
   };
 
-  const handleResetToDefault = async () => {
+  const handleResetToDefault = () => {
     if (!isAdmin) {
       setShowPasscodeModal(true);
       return;
@@ -360,21 +343,14 @@ export default function App() {
       setTimeout(() => setShowConfirmRestore(false), 4000);
       return;
     }
+    setIsLoadingProjects(true);
     try {
-      setIsLoadingProjects(true);
-      // Clear Firestore projects first
-      for (const p of projects) {
-        await deleteProjectFromFirestore(p.id);
-      }
-      // Re-seed original INITIAL_PROJECTS
-      for (const p of INITIAL_PROJECTS) {
-        await saveProjectToFirestore(p);
-      }
       setProjects(INITIAL_PROJECTS);
+      localStorage.setItem("ronin_projects", JSON.stringify(INITIAL_PROJECTS));
       setActiveCategory("ALL");
       setShowConfirmRestore(false);
     } catch (err) {
-      console.error("Firestore sync failure during reset:", err);
+      console.error("Local reset failure:", err);
     } finally {
       setIsLoadingProjects(false);
     }
