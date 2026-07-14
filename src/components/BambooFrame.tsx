@@ -9,7 +9,7 @@ interface BambooFrameProps {
 
 export function BambooFrame({ children, className = "", isFeatured = false }: BambooFrameProps) {
   return (
-    <div className={`relative group p-[3px] border border-neutral-200 dark:border-neutral-800/80 hover:border-neutral-950 dark:hover:border-neutral-100 bg-white dark:bg-black transition-all duration-500 ${className}`}>
+    <div className={`relative group p-[3px] border border-neutral-200 dark:border-neutral-800/80 hover:border-neutral-950 dark:hover:border-neutral-100 bg-white dark:bg-black transition-all duration-500 flex flex-col ${className}`}>
       {/* Decorative SVG Outer Borders: Brush feeling */}
       <svg
         className="absolute inset-0 w-full h-full pointer-events-none z-10 select-none"
@@ -79,7 +79,7 @@ export function BambooFrame({ children, className = "", isFeatured = false }: Ba
       )}
 
       {/* Inner Card Content */}
-      <div className="relative bg-white dark:bg-black p-6 md:p-8 border border-neutral-150 dark:border-neutral-900 group-hover:border-neutral-950 dark:group-hover:border-neutral-100 transition-colors duration-500 overflow-hidden h-full flex flex-col justify-between">
+      <div className="relative bg-white dark:bg-black p-6 md:p-8 border border-neutral-150 dark:border-neutral-900 group-hover:border-neutral-950 dark:group-hover:border-neutral-100 transition-colors duration-500 overflow-hidden h-full flex-1 flex flex-col justify-between">
         {/* Sumi brush-stroke accent in background of card (very faint) */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4/5 h-1/2 pointer-events-none opacity-[0.015] dark:opacity-[0.025] select-none transition-transform duration-700 group-hover:scale-110">
           <svg viewBox="0 0 100 50" className="w-full h-full fill-neutral-900 dark:fill-neutral-100">
@@ -87,7 +87,7 @@ export function BambooFrame({ children, className = "", isFeatured = false }: Ba
           </svg>
         </div>
 
-        <div className="relative z-10">{children}</div>
+        <div className="relative z-10 h-full flex flex-col justify-between">{children}</div>
       </div>
     </div>
   );

@@ -10,7 +10,7 @@ interface ProjectModalProps {
   projectToEdit?: Project | null;
 }
 
-const BADGES: Project["badge"][] = ["SAMURAI", "SHINOBI", "SHOGUN", "RONIN", "SABER"];
+const BADGES: Project["badge"][] = ["Blue team", "Red team", "Training", "Games"];
 
 export function ProjectModal({ isOpen, onClose, onSave, projectToEdit }: ProjectModalProps) {
   const [title, setTitle] = useState("");
@@ -19,7 +19,7 @@ export function ProjectModal({ isOpen, onClose, onSave, projectToEdit }: Project
   const [role, setRole] = useState("");
   const [demoUrl, setDemoUrl] = useState("");
   const [codeUrl, setCodeUrl] = useState("");
-  const [badge, setBadge] = useState<Project["badge"]>("RONIN");
+  const [badge, setBadge] = useState<Project["badge"]>("Training");
   const [techInput, setTechInput] = useState("");
   const [techList, setTechList] = useState<string[]>([]);
   const [featured, setFeatured] = useState(false);
@@ -49,10 +49,10 @@ export function ProjectModal({ isOpen, onClose, onSave, projectToEdit }: Project
       setTitle("");
       setDescription("");
       setCategory("");
-      setRole("Solo Ronin");
+      setRole("Solo Developer");
       setDemoUrl("https://");
       setCodeUrl("https://github.com/");
-      setBadge("RONIN");
+      setBadge("Training");
       setTechList(["React", "TypeScript", "Tailwind CSS"]);
       setTechInput("");
       setFeatured(false);
@@ -90,7 +90,61 @@ export function ProjectModal({ isOpen, onClose, onSave, projectToEdit }: Project
     }
   };
 
-  const handleFile = (file: File) => {
+  const compressImage = (file: File, maxWidth = 800, maxHeight = 800, quality = 0.75): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const type = file.type;
+      if (!type.startsWith("image/") || type.includes("gif") || type.includes("svg")) {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.onerror = (err) => reject(err);
+        reader.readAsDataURL(file);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new window.Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            resolve(e.target?.result as string);
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
+          resolve(compressedDataUrl);
+        };
+        img.onerror = () => {
+          resolve(e.target?.result as string);
+        };
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = (err) => reject(err);
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFile = async (file: File) => {
     setUploadError("");
     const validExtensions = ['.gif', '.png', '.jpeg', '.jpg', '.webm', '.svg'];
     const fileName = file.name.toLowerCase();
@@ -106,16 +160,13 @@ export function ProjectModal({ isOpen, onClose, onSave, projectToEdit }: Project
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      if (e.target?.result) {
-        setImage(e.target.result as string);
-      }
-    };
-    reader.onerror = () => {
-      setUploadError("Error reading file.");
-    };
-    reader.readAsDataURL(file);
+    try {
+      const compressed = await compressImage(file);
+      setImage(compressed);
+    } catch (err) {
+      setUploadError("Error reading or compressing file.");
+      console.error(err);
+    }
   };
 
   const handleAddTech = () => {
@@ -176,7 +227,7 @@ export function ProjectModal({ isOpen, onClose, onSave, projectToEdit }: Project
         <div className="flex items-center justify-between border-b border-neutral-200 dark:border-neutral-800 pb-4 mb-6">
           <div>
             <span className="text-[10px] font-mono tracking-widest text-neutral-400 uppercase">
-              {projectToEdit ? "// UPDATE SHINOBI WORK" : "// FORGE NEW WEAPON"}
+              {projectToEdit ? "// UPDATE WORK" : "// EDIT NEW PROJECT"}
             </span>
             <h2 className="font-display text-xl md:text-2xl font-bold uppercase tracking-tight">
               {projectToEdit ? "Edit Application" : "Enlist Project"}
@@ -250,10 +301,10 @@ export function ProjectModal({ isOpen, onClose, onSave, projectToEdit }: Project
             </div>
           </div>
 
-          {/* Row 3: Samurai Badge Presets */}
+          {/* Row 3: Badge Presets */}
           <div>
             <label className="block text-[11px] font-mono uppercase tracking-wider text-neutral-500 mb-1.5">
-              Honorary Rank Badge
+              Team Badge
             </label>
             <div className="flex flex-wrap gap-2">
               {BADGES.map((b) => (
@@ -489,7 +540,7 @@ export function ProjectModal({ isOpen, onClose, onSave, projectToEdit }: Project
               className="inline-flex items-center space-x-2 px-5 py-2 text-xs font-mono uppercase tracking-wider border border-neutral-900 dark:border-neutral-100 bg-neutral-900 text-white dark:bg-neutral-100 dark:text-black hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-all duration-150 cursor-pointer"
             >
               <Save className="w-3.5 h-3.5" />
-              <span>Forge Changes</span>
+              <span>Edit Changes</span>
             </button>
           </div>
         </form>

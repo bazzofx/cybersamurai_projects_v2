@@ -9,7 +9,7 @@ export const INITIAL_PROJECTS: Project[] = [
     tech: ["TypeScript", "HTML5 Canvas", "WebGL", "MathUtils"],
     demoUrl: "https://example.com/katana-demo",
     codeUrl: "https://github.com/samurai/katana-js",
-    badge: "SABER",
+    badge: "Games",
     role: "Lead Architect",
     featured: true,
     date: "Spring 1582"
@@ -22,7 +22,7 @@ export const INITIAL_PROJECTS: Project[] = [
     tech: ["Rust", "WebAssembly", "IndexedDB", "Serde"],
     demoUrl: "https://example.com/bamboo-db",
     codeUrl: "https://github.com/samurai/bamboo-db",
-    badge: "SHINOBI",
+    badge: "Training",
     role: "Solo Creator",
     featured: false,
     date: "Autumn 1585"
@@ -35,7 +35,7 @@ export const INITIAL_PROJECTS: Project[] = [
     tech: ["React", "CSS Variables", "Tailwind CSS", "Motion"],
     demoUrl: "https://example.com/sumie-studio",
     codeUrl: "https://github.com/samurai/sumie-studio",
-    badge: "SAMURAI",
+    badge: "Blue team",
     role: "Lead UI Artist",
     featured: false,
     date: "Winter 1588"
@@ -48,7 +48,7 @@ export const INITIAL_PROJECTS: Project[] = [
     tech: ["WebCrypto API", "LocalStore", "TypeScript", "ECC"],
     demoUrl: "https://example.com/ronin-guard",
     codeUrl: "https://github.com/samurai/roningard",
-    badge: "RONIN",
+    badge: "Red team",
     role: "Security Engineer",
     featured: false,
     date: "Summer 1590"

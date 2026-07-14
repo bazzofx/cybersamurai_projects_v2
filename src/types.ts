@@ -6,7 +6,7 @@ export interface Project {
   tech: string[];
   demoUrl: string;
   codeUrl: string;
-  badge: "SAMURAI" | "SHINOBI" | "SHOGUN" | "RONIN" | "SABER";
+  badge: "Blue team" | "Red team" | "Training" | "Games";
   role: string;
   featured: boolean;
   date: string;

@@ -38,7 +38,10 @@ import {
   fetchUsersFromFirestore,
   saveUserToFirestore,
   getUserFromFirestore,
-  seedUsersInFirestore
+  seedUsersInFirestore,
+  fetchProjectsFromFirestore,
+  saveProjectToFirestore,
+  deleteProjectFromFirestore
 } from "./firebase";
 import { 
   signInWithEmailAndPassword, 
@@ -133,7 +136,7 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Load projects from local storage on mount & seed default admins in Firestore
+  // Load projects from Firestore/local storage on mount & seed default admins in Firestore
   useEffect(() => {
     let active = true;
     async function loadDataAndSeed() {
@@ -146,22 +149,64 @@ export default function App() {
 
       setIsLoadingProjects(true);
       try {
-        const stored = localStorage.getItem("ronin_projects");
-        if (stored && active) {
+        // Try fetching from Firestore first
+        const firebaseProjects = await fetchProjectsFromFirestore();
+        if (firebaseProjects && firebaseProjects.length > 0 && active) {
+          setProjects(firebaseProjects);
           try {
-            setProjects(JSON.parse(stored));
+            localStorage.setItem("ronin_projects", JSON.stringify(firebaseProjects));
           } catch (e) {
-            setProjects(INITIAL_PROJECTS);
-            localStorage.setItem("ronin_projects", JSON.stringify(INITIAL_PROJECTS));
+            console.error("Local storage sync error:", e);
           }
-        } else if (active) {
-          setProjects(INITIAL_PROJECTS);
-          localStorage.setItem("ronin_projects", JSON.stringify(INITIAL_PROJECTS));
+        } else {
+          // Fallback to local storage if Firestore has no projects
+          const stored = localStorage.getItem("ronin_projects");
+          if (stored && active) {
+            try {
+              const parsed = JSON.parse(stored);
+              setProjects(parsed);
+              // Also populate Firestore so they are synced
+              for (const p of parsed) {
+                await saveProjectToFirestore(p);
+              }
+            } catch (e) {
+              setProjects(INITIAL_PROJECTS);
+              try {
+                localStorage.setItem("ronin_projects", JSON.stringify(INITIAL_PROJECTS));
+              } catch (se) {
+                console.error("Local storage initial seed failure:", se);
+              }
+              for (const p of INITIAL_PROJECTS) {
+                await saveProjectToFirestore(p);
+              }
+            }
+          } else if (active) {
+            setProjects(INITIAL_PROJECTS);
+            try {
+              localStorage.setItem("ronin_projects", JSON.stringify(INITIAL_PROJECTS));
+            } catch (se) {
+              console.error("Local storage initial seed failure:", se);
+            }
+            for (const p of INITIAL_PROJECTS) {
+              await saveProjectToFirestore(p);
+            }
+          }
         }
       } catch (err: any) {
-        console.error("Error loading local projects:", err);
+        console.error("Error loading projects from Firestore:", err);
+        setFirebaseError("Cloud Archive unreached. Loading offline replica.");
+        // Fallback to local storage on Firestore failure
         if (active) {
-          setProjects(INITIAL_PROJECTS);
+          const stored = localStorage.getItem("ronin_projects");
+          if (stored) {
+            try {
+              setProjects(JSON.parse(stored));
+            } catch (e) {
+              setProjects(INITIAL_PROJECTS);
+            }
+          } else {
+            setProjects(INITIAL_PROJECTS);
+          }
         }
       } finally {
         if (active) {
@@ -203,7 +248,11 @@ export default function App() {
   // Back up state locally as a safe local replica
   useEffect(() => {
     if (projects.length > 0) {
-      localStorage.setItem("ronin_projects", JSON.stringify(projects));
+      try {
+        localStorage.setItem("ronin_projects", JSON.stringify(projects));
+      } catch (e) {
+        console.error("Local storage backup failed (likely quota exceeded due to large content):", e);
+      }
     }
   }, [projects]);
 
@@ -287,18 +336,33 @@ export default function App() {
 
 
   // --- Project Handlers ---
-  const handleSaveProject = (savedProject: Project) => {
+  const handleSaveProject = async (savedProject: Project) => {
     if (!isAdmin) {
       setShowPasscodeModal(true);
       return;
     }
+    
+    // Save to state and local storage immediately for responsive UI
     setProjects((prev) => {
       const updated = editingProject 
         ? prev.map((p) => (p.id === savedProject.id ? savedProject : p))
         : [savedProject, ...prev];
-      localStorage.setItem("ronin_projects", JSON.stringify(updated));
+      try {
+        localStorage.setItem("ronin_projects", JSON.stringify(updated));
+      } catch (e) {
+        console.error("Local storage sync error:", e);
+      }
       return updated;
     });
+
+    // Save to Firestore DB
+    try {
+      await saveProjectToFirestore(savedProject);
+    } catch (err: any) {
+      console.error("Error saving project to Firestore:", err);
+      setFirebaseError("Failed to sync project with Cloud Archive.");
+    }
+    
     setEditingProject(null);
   };
 
@@ -311,16 +375,30 @@ export default function App() {
     setIsModalOpen(true);
   };
 
-  const handleDeleteProject = (id: string) => {
+  const handleDeleteProject = async (id: string) => {
     if (!isAdmin) {
       setShowPasscodeModal(true);
       return;
     }
+    
+    // Delete from state and local storage immediately
     setProjects((prev) => {
       const updated = prev.filter((p) => p.id !== id);
-      localStorage.setItem("ronin_projects", JSON.stringify(updated));
+      try {
+        localStorage.setItem("ronin_projects", JSON.stringify(updated));
+      } catch (e) {
+        console.error("Local storage sync error:", e);
+      }
       return updated;
     });
+
+    // Delete from Firestore DB
+    try {
+      await deleteProjectFromFirestore(id);
+    } catch (err: any) {
+      console.error("Error deleting project from Firestore:", err);
+      setFirebaseError("Failed to delete project from Cloud Archive.");
+    }
   };
 
   const handleAddNewClick = () => {
@@ -332,7 +410,7 @@ export default function App() {
     setIsModalOpen(true);
   };
 
-  const handleResetToDefault = () => {
+  const handleResetToDefault = async () => {
     if (!isAdmin) {
       setShowPasscodeModal(true);
       return;
@@ -346,9 +424,18 @@ export default function App() {
     setIsLoadingProjects(true);
     try {
       setProjects(INITIAL_PROJECTS);
-      localStorage.setItem("ronin_projects", JSON.stringify(INITIAL_PROJECTS));
+      try {
+        localStorage.setItem("ronin_projects", JSON.stringify(INITIAL_PROJECTS));
+      } catch (e) {
+        console.error("Local storage reset error:", e);
+      }
       setActiveCategory("ALL");
       setShowConfirmRestore(false);
+      
+      // Update Firestore DB in background
+      for (const p of INITIAL_PROJECTS) {
+        await saveProjectToFirestore(p);
+      }
     } catch (err) {
       console.error("Local reset failure:", err);
     } finally {
@@ -837,7 +924,7 @@ export default function App() {
                                   className="px-3 py-2 text-xs font-mono uppercase tracking-wider border border-neutral-200 dark:border-neutral-800 hover:border-neutral-900 dark:hover:border-neutral-200 text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors ml-auto cursor-pointer"
                                   title="Edit project specs"
                                 >
-                                  RE-FORGE
+                                  EDIT
                                 </button>
                               )}
                             </div>
@@ -875,7 +962,7 @@ export default function App() {
                               
                               <div className="absolute bottom-4 left-4 bg-black/75 backdrop-blur-xs px-2.5 py-1.5 border border-neutral-800 rounded-xs select-none">
                                 <span className="text-[9px] font-mono text-neutral-300 uppercase tracking-wider">
-                                  RANK: {project.badge}
+                                  TEAM: {project.badge}
                                 </span>
                               </div>
                             </div>
@@ -885,7 +972,7 @@ export default function App() {
                               <div className="absolute w-28 h-28 rounded-full border border-neutral-200 dark:border-neutral-800" />
 
                               <div className="relative text-7xl font-bold font-display text-neutral-900 dark:text-neutral-100 animate-pulse select-none">
-                                {project.badge === "SABER" ? "剣" : "刃"}
+                                🛡️
                               </div>
 
                               <div className="absolute bottom-4 right-4 text-right flex flex-col items-end">
@@ -894,8 +981,8 @@ export default function App() {
                               </div>
 
                               <div className="absolute bottom-4 left-4">
-                                <span className="text-[9px] font-mono text-neutral-400 uppercase tracking-wider">
-                                  GRADE: {project.badge}
+                                <span className="text-[9px] font-mono text-neutral-450 uppercase tracking-wider">
+                                  TEAM: {project.badge}
                                 </span>
                               </div>
                             </>
@@ -1026,7 +1113,7 @@ export default function App() {
                       <Plus className="w-6 h-6 text-neutral-400 group-hover:text-neutral-950 dark:group-hover:text-neutral-100" />
                     </div>
                     <p className="font-display font-bold text-sm uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
-                      FORGE NEW APPLICATION
+                      ADD NEW APPLICATION
                     </p>
                     <p className="text-xs text-neutral-400 dark:text-neutral-500 font-sans max-w-[200px] mt-1.5">
                       Add your custom web apps, portfolio links, and technology stacks directly.
@@ -1035,13 +1122,13 @@ export default function App() {
                 )}
 
                 {/* Project List */}
-                {regularProjects.length === 0 ? (
+                {filteredProjects.length === 0 ? (
                   <div className="col-span-1 md:col-span-2 flex flex-col items-center justify-center py-12 text-center border border-neutral-100 dark:border-neutral-900">
                     <ShieldAlert className="w-8 h-8 text-neutral-300 mb-2" />
                     <p className="text-sm text-neutral-400 font-mono">NO COMPATIBLE CREATIONS FOUND IN THIS SHIELD</p>
                   </div>
                 ) : (
-                  regularProjects.map((proj) => (
+                  filteredProjects.map((proj) => (
                     <ProjectCard
                       key={proj.id}
                       project={proj}
