@@ -22,11 +22,7 @@ import {
   Lock,
   Unlock,
   ChevronLeft,
-  ChevronRight,
-  Users,
-  Trash2,
-  UserPlus,
-  ShieldCheck
+  ChevronRight
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -683,19 +679,13 @@ export default function App() {
               {/* Theme Toggle Button */}
               <button
                 onClick={toggleTheme}
-                className="flex items-center space-x-1.5 px-3 py-1.5 border border-neutral-200 dark:border-neutral-800 hover:border-neutral-900 dark:hover:border-neutral-100 text-xs font-mono tracking-widest uppercase transition-all duration-300 rounded-xs cursor-pointer"
+                className="flex items-center justify-center h-[25px] w-[50px] border border-neutral-200 dark:border-neutral-800 hover:border-neutral-900 dark:hover:border-neutral-100 text-[12px] font-mono transition-all duration-300 rounded-xs cursor-pointer"
                 title={`Switch to ${theme === "light" ? "Dark" : "Light"} Mode`}
               >
                 {theme === "light" ? (
-                  <>
-                    <Moon className="w-3.5 h-3.5" />
-                    <span className="hidden xs:inline text-[11px]">DARK_MODE</span>
-                  </>
+                  <Moon className="w-3.5 h-3.5" />
                 ) : (
-                  <>
-                    <Sun className="w-3.5 h-3.5" />
-                    <span className="hidden xs:inline text-[11px]">LIGHT_MODE</span>
-                  </>
+                  <Sun className="w-3.5 h-3.5" />
                 )}
               </button>
             </div>
@@ -896,7 +886,7 @@ export default function App() {
                                   rel="noopener noreferrer"
                                   className="inline-flex items-center space-x-2 px-5 py-2 text-xs font-mono font-semibold tracking-wider uppercase border border-neutral-950 dark:border-neutral-100 bg-neutral-950 text-white dark:bg-neutral-100 dark:text-black hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-all duration-150 rounded-xs"
                                 >
-                                  <span>RUN APPLICATION</span>
+                                  <span>View Project</span>
                                   <ArrowUpRight className="w-3.5 h-3.5" />
                                 </a>
                               )}
@@ -1701,177 +1691,7 @@ export default function App() {
           </div>
         </section>
 
-        {/* Bushido Crew / User Management Section - only visible to admins */}
-        {isAdmin && (
-          <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 border-t border-neutral-100 dark:border-neutral-900 bg-neutral-50/5 dark:bg-neutral-950/5 relative z-10">
-            <div className="space-y-8">
-              <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                <div className="space-y-2">
-                  <div className="inline-flex items-center space-x-2 px-2.5 py-0.5 text-[9px] font-mono tracking-widest uppercase border border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/5">
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    <span>ADMINISTRATIVE ZONE ACTIVE</span>
-                  </div>
-                  <h3 className="text-3xl font-extrabold tracking-tight uppercase font-display text-neutral-900 dark:text-white">
-                    Bushido Crew Directory
-                  </h3>
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400 max-w-xl">
-                    Live management of accounts in the <code className="font-mono bg-neutral-100 dark:bg-neutral-900 px-1 py-0.5 rounded text-[11px]">users</code> Firestore collection. Elevate or dismiss members to assign web editing permissions.
-                  </p>
-                </div>
-              </div>
 
-              {/* Grid: Left is directory list, Right is Recruit warrior form */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                
-                {/* Users List Table */}
-                <div className="lg:col-span-8 border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black p-6 rounded-sm space-y-4">
-                  <div className="flex items-center justify-between border-b border-neutral-150 dark:border-neutral-850 pb-3">
-                    <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-400">
-                      // {usersList.length} ACTIVE CLOUD DOCUMENTS
-                    </span>
-                    {isLoadingUsers && (
-                      <span className="text-[9px] font-mono text-amber-500 uppercase tracking-widest animate-pulse">
-                        SYNCING WITH FIRESTORE...
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="border-b border-neutral-100 dark:border-neutral-900 text-[10px] font-mono text-neutral-400 uppercase tracking-wider">
-                          <th className="py-2.5">Username</th>
-                          <th className="py-2.5">Email</th>
-                          <th className="py-2.5">Role</th>
-                          <th className="py-2.5 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-neutral-100 dark:divide-neutral-900 text-xs font-sans">
-                        {usersList.length === 0 ? (
-                          <tr>
-                            <td colSpan={4} className="py-8 text-center text-neutral-400 font-mono text-[11px]">
-                              NO ACTIVE CREW DOCUMENTED in Firestore collection.
-                            </td>
-                          </tr>
-                        ) : (
-                          usersList.map((user) => {
-                            const isSelf = adminUser?.email?.toLowerCase() === user.email.toLowerCase();
-                            return (
-                              <tr key={user.username} className="hover:bg-neutral-50/50 dark:hover:bg-neutral-950/20 transition-colors">
-                                <td className="py-3.5 font-mono font-medium text-neutral-900 dark:text-neutral-100">
-                                  {user.username}
-                                </td>
-                                <td className="py-3.5 text-neutral-500 dark:text-neutral-400">
-                                  {user.email}
-                                </td>
-                                <td className="py-3.5">
-                                  <span className={`inline-flex items-center px-2 py-0.5 text-[9px] font-mono font-semibold uppercase rounded-xs ${
-                                    user.role === "admin" || user.isAdmin
-                                      ? "bg-amber-400/10 border border-amber-400/30 text-amber-600 dark:text-amber-400"
-                                      : "bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-neutral-500 dark:text-neutral-400"
-                                  }`}>
-                                    {user.role === "admin" || user.isAdmin ? "ADMIN" : "MEMBER"}
-                                  </span>
-                                </td>
-                                <td className="py-3.5 text-right space-x-2">
-                                  <button
-                                    onClick={() => handleToggleAdmin(user)}
-                                    className="px-2.5 py-1 text-[9px] font-mono uppercase tracking-widest border border-neutral-200 dark:border-neutral-800 hover:border-neutral-900 dark:hover:border-neutral-100 text-neutral-600 dark:text-neutral-400 rounded-xs transition-colors cursor-pointer"
-                                    title="Toggle Admin Privilege"
-                                  >
-                                    TOGGLE_ROLE
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteUser(user.username)}
-                                    disabled={isSelf}
-                                    className={`p-1 border text-neutral-400 hover:text-red-500 dark:hover:text-red-400 rounded-xs transition-colors inline-flex items-center justify-center cursor-pointer ${
-                                      isSelf ? "opacity-30 cursor-not-allowed" : "border-neutral-200 dark:border-neutral-800 hover:border-red-500/20"
-                                    }`}
-                                    title={isSelf ? "Cannot dismiss yourself" : "Dismiss Warrior"}
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Recruit Form Card */}
-                <div className="lg:col-span-4 border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black p-6 rounded-sm space-y-4">
-                  <div className="border-b border-neutral-100 dark:border-neutral-900 pb-3 flex items-center space-x-2">
-                    <UserPlus className="w-4 h-4 text-amber-500" />
-                    <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-400">
-                      // RECRUIT NEW WARRIOR
-                    </span>
-                  </div>
-
-                  <form onSubmit={handleAddUser} className="space-y-4">
-                    <div className="space-y-1">
-                      <label className="block text-[9px] font-mono text-neutral-400 uppercase tracking-widest">
-                        Username
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={newUsername}
-                        onChange={(e) => setNewUsername(e.target.value)}
-                        placeholder="e.g. kimkapuan"
-                        className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 focus:outline-hidden focus:border-neutral-950 dark:focus:border-neutral-100 text-xs font-sans text-neutral-900 dark:text-neutral-100"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="block text-[9px] font-mono text-neutral-400 uppercase tracking-widest">
-                        Email Address
-                      </label>
-                      <input
-                        type="email"
-                        required
-                        value={newUserEmail}
-                        onChange={(e) => setNewUserEmail(e.target.value)}
-                        placeholder="e.g. kimkapuan@cybersamurai.co.uk"
-                        className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 focus:outline-hidden focus:border-neutral-950 dark:focus:border-neutral-100 text-xs font-sans text-neutral-900 dark:text-neutral-100"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="block text-[9px] font-mono text-neutral-400 uppercase tracking-widest">
-                        Authority Level
-                      </label>
-                      <select
-                        value={newUserRole}
-                        onChange={(e) => setNewUserRole(e.target.value as "admin" | "viewer")}
-                        className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 focus:outline-hidden focus:border-neutral-950 dark:focus:border-neutral-100 text-xs font-sans text-neutral-900 dark:text-neutral-100"
-                      >
-                        <option value="admin">ADMIN (Can edit website)</option>
-                        <option value="viewer">VIEWER (Read-only access)</option>
-                      </select>
-                    </div>
-
-                    {userActionError && (
-                      <p className="text-[10px] font-mono text-red-500 uppercase tracking-wider leading-relaxed">
-                        {userActionError}
-                      </p>
-                    )}
-
-                    <button
-                      type="submit"
-                      className="w-full py-2.5 bg-neutral-950 dark:bg-neutral-100 text-neutral-100 dark:text-neutral-950 text-xs font-mono font-bold uppercase tracking-widest hover:bg-neutral-900 dark:hover:bg-white transition-all cursor-pointer"
-                    >
-                      ADD TO FIRESTORE
-                    </button>
-                  </form>
-                </div>
-
-              </div>
-            </div>
-          </section>
-        )}
 
       </div>
 

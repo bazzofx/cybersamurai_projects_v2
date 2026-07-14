@@ -29,7 +29,7 @@ export function ProjectCard({ project, onEdit, onDelete, isAdmin }: ProjectCardP
             {/* Header metadata row */}
             <div className="flex items-center justify-between text-[11px] font-mono tracking-wider text-neutral-400 dark:text-neutral-500 mb-2">
               <span>// {project.category.toUpperCase()}</span>
-              <span className="text-[10px] opacity-75">{project.date}</span>
+              <span className="text-[12px] opacity-75">{project.date}</span>
             </div>
 
             {/* Project Title & Badge */}
@@ -40,10 +40,10 @@ export function ProjectCard({ project, onEdit, onDelete, isAdmin }: ProjectCardP
 
               {/* Stylized Badge */}
               <span
-                className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-mono font-semibold border rounded-xs select-none bg-neutral-50 dark:bg-neutral-950 text-neutral-800 dark:text-neutral-200 border-neutral-200 dark:border-neutral-800 shrink-0"
+                className="inline-flex items-center px-1.5 py-0.5 text-[14px] font-mono font-semibold border rounded-xs select-none bg-neutral-50 dark:bg-neutral-950 text-neutral-800 dark:text-neutral-200 border-neutral-200 dark:border-neutral-800 shrink-0"
                 title={`${project.badge} badge`}
               >
-                <span className="mr-1 text-[10px]" role="img" aria-label={project.badge}>
+                <span className="mr-1 text-[14px]" role="img" aria-label={project.badge}>
                   {badgeIcons[project.badge] || "🛡️"}
                 </span>
                 {project.badge}
@@ -120,7 +120,7 @@ export function ProjectCard({ project, onEdit, onDelete, isAdmin }: ProjectCardP
                   className="inline-flex items-center space-x-1 px-2.5 py-1 text-[11px] font-mono font-medium tracking-wide uppercase border border-neutral-900 dark:border-neutral-100 bg-neutral-900 text-white dark:bg-neutral-100 dark:text-black hover:bg-neutral-800 dark:hover:bg-neutral-200 active:scale-95 transition-all duration-150 rounded-xs"
                 >
                   <Eye className="w-3 h-3" />
-                  <span>Demo</span>
+                  <span>View Project</span>
                 </a>
               )}
               {project.codeUrl && (
