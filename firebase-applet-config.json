@@ -1,10 +1,11 @@
 {
-  "projectId": "cybersamurai-2026",
-  "appId": "1:463410837033:web:19928f183a5abe6089ce38",
-  "apiKey": "AIzaSyDS4NceHwP90N-iKIIDMDSqEEAtRjxt5dE",
-  "authDomain": "cybersamurai-2026.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-00567b2b-114a-4e8b-bdc0-9a1f30d0870b",
-  "storageBucket": "cybersamurai-2026.firebasestorage.app",
-  "messagingSenderId": "463410837033",
-  "measurementId": ""
+  "projectId": "spheric-crowbar-491420-n1",
+  "appId": "1:780647751532:web:92e471616fbfc5dcf5dd49",
+  "apiKey": "AIzaSyBDm9489tLg7TQBnQ3QPeXSvGXqVr5rHYo",
+  "authDomain": "spheric-crowbar-491420-n1.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-samuraiportfolio-00567b2b-114a-4e8b-bdc0-9a1f30d0870b",
+  "storageBucket": "spheric-crowbar-491420-n1.firebasestorage.app",
+  "messagingSenderId": "780647751532",
+  "measurementId": "",
+  "oAuthClientId": "780647751532-l8hu86dc3m0dhp0el03ibk272jpie9ti.apps.googleusercontent.com"
 }

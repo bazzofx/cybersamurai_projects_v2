@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Project, ZenQuote } from "./types";
+import { Project, ZenQuote, UserDoc } from "./types";
 import { INITIAL_PROJECTS, BUSHIDO_QUOTES, BUSHIDO_VIRTUES } from "./data";
 import { SumiCanvas } from "./components/SumiCanvas";
 import { ProjectCard } from "./components/ProjectCard";
@@ -22,34 +22,40 @@ import {
   Lock,
   Unlock,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Users,
+  Trash2,
+  UserPlus,
+  ShieldCheck
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
-// Firebase & Services imports
+// Firebase imports
 import { 
+  auth, 
+  db, 
+  getEmailForUsername, 
+  fetchProjectsFromFirestore, 
   saveProjectToFirestore, 
   deleteProjectFromFirestore,
-  fetchProjectsFromFirestore
+  fetchUsersFromFirestore,
+  saveUserToFirestore,
+  getUserFromFirestore,
+  seedUsersInFirestore
 } from "./firebase";
-import {
-  login,
-  logout,
-  subscribeToAuthChanges
-} from "./services/authService";
-import {
-  validateAndSeedProjects,
-  resetProjects,
-  getLocalStorageProjects,
-  saveLocalStorageProjects
-} from "./services/projectService";
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  onAuthStateChanged, 
+  signOut 
+} from "firebase/auth";
 
 export default function App() {
   // --- Persistent Dark/Light Mode state ---
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     const stored = localStorage.getItem("ronin_theme");
     if (stored === "light" || stored === "dark") return stored;
-    return "light"; // Default to light mode (white background as requested)
+    return "dark"; // Default to dark mode (monochrome dark background)
   });
 
   // --- Projects State initialized empty, fetched from Firestore ---
@@ -84,6 +90,14 @@ export default function App() {
   const [passcodeError, setPasscodeError] = useState("");
   const [showConfirmRestore, setShowConfirmRestore] = useState(false);
 
+  // --- Live Users List states ---
+  const [usersList, setUsersList] = useState<UserDoc[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState<boolean>(false);
+  const [newUsername, setNewUsername] = useState("");
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserRole, setNewUserRole] = useState<"admin" | "viewer">("admin");
+  const [userActionError, setUserActionError] = useState("");
+
   // Apply dark mode class to html document
   useEffect(() => {
     const root = document.documentElement;
@@ -95,12 +109,25 @@ export default function App() {
     localStorage.setItem("ronin_theme", theme);
   }, [theme]);
 
-  // Real-time Firebase Auth listener
+  // Real-time Firebase Auth listener with live user roles lookup
   useEffect(() => {
-    const unsubscribe = subscribeToAuthChanges((user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        setIsAdmin(true);
         setAdminUser(user);
+        try {
+          const userDoc = await getUserFromFirestore(user.email || "");
+          if (userDoc && (userDoc.role === "admin" || userDoc.isAdmin === true)) {
+            setIsAdmin(true);
+          } else {
+            // Fallback for default admin list
+            const defaultAdmins = ["kimkapuan23@cybersamurai.co.uk", "kimkapuant23@cybersamurai.co.uk"];
+            setIsAdmin(defaultAdmins.includes(user.email?.toLowerCase() || ""));
+          }
+        } catch (err) {
+          console.error("Error fetching user role from Firestore:", err);
+          const defaultAdmins = ["kimkapuan23@cybersamurai.co.uk", "kimkapuant23@cybersamurai.co.uk"];
+          setIsAdmin(defaultAdmins.includes(user.email?.toLowerCase() || ""));
+        }
       } else {
         setIsAdmin(false);
         setAdminUser(null);
@@ -109,23 +136,43 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Fetch projects on mount
+  // Fetch projects from Firestore on mount & seed default admins
   useEffect(() => {
     let active = true;
-    async function loadData() {
+    async function loadDataAndSeed() {
       try {
+        // Seed users directory
+        await seedUsersInFirestore();
+
         setIsLoadingProjects(true);
         const data = await fetchProjectsFromFirestore();
-        const finalProjects = await validateAndSeedProjects(data);
         if (active) {
-          setProjects(finalProjects);
+          if (data.length === 0) {
+            console.log("Firestore empty. Seeding INITIAL_PROJECTS...");
+            for (const p of INITIAL_PROJECTS) {
+              await saveProjectToFirestore(p);
+            }
+            const seededData = await fetchProjectsFromFirestore();
+            setProjects(seededData);
+          } else {
+            setProjects(data);
+          }
           setFirebaseError("");
         }
       } catch (err: any) {
         console.error("Error fetching projects from Firestore:", err);
         if (active) {
           setFirebaseError("Using offline mock copy");
-          setProjects(getLocalStorageProjects());
+          const stored = localStorage.getItem("ronin_projects");
+          if (stored) {
+            try {
+              setProjects(JSON.parse(stored));
+            } catch (e) {
+              setProjects(INITIAL_PROJECTS);
+            }
+          } else {
+            setProjects(INITIAL_PROJECTS);
+          }
         }
       } finally {
         if (active) {
@@ -133,18 +180,43 @@ export default function App() {
         }
       }
     }
-    loadData();
+    loadDataAndSeed();
     return () => {
       active = false;
     };
   }, []);
 
+  // Sync / Load live users directory whenever isAdmin is active
+  useEffect(() => {
+    let active = true;
+    async function loadUsers() {
+      if (!isAdmin) return;
+      try {
+        setIsLoadingUsers(true);
+        const list = await fetchUsersFromFirestore();
+        if (active) {
+          setUsersList(list);
+        }
+      } catch (err) {
+        console.error("Error loading users directory:", err);
+      } finally {
+        if (active) {
+          setIsLoadingUsers(false);
+        }
+      }
+    }
+    loadUsers();
+    return () => {
+      active = false;
+    };
+  }, [isAdmin]);
+
   // Back up state locally as a safe local replica
   useEffect(() => {
-    if (!isLoadingProjects) {
-      saveLocalStorageProjects(projects);
+    if (projects.length > 0) {
+      localStorage.setItem("ronin_projects", JSON.stringify(projects));
     }
-  }, [projects, isLoadingProjects]);
+  }, [projects]);
 
   const toggleTheme = () => {
     setTheme((prev) => (prev === "light" ? "dark" : "light"));
@@ -173,7 +245,32 @@ export default function App() {
 
     try {
       setPasscodeError("");
-      await login(cleanUsername, cleanPassword);
+      const email = getEmailForUsername(cleanUsername);
+
+      try {
+        // Attempt normal sign-in first
+        await signInWithEmailAndPassword(auth, email, cleanPassword);
+      } catch (signInErr: any) {
+        // If the user doesn't exist (e.g. auth/user-not-found or auth/invalid-credential),
+        // automatically register them on their first login attempt to seed the admin account.
+        if (
+          signInErr.code === "auth/user-not-found" ||
+          signInErr.code === "auth/invalid-credential"
+        ) {
+          try {
+            await createUserWithEmailAndPassword(auth, email, cleanPassword);
+          } catch (createErr: any) {
+            if (createErr.code === "auth/email-already-in-use") {
+              throw signInErr; // Re-throw the original sign-in error
+            } else {
+              throw createErr;
+            }
+          }
+        } else {
+          throw signInErr;
+        }
+      }
+
       setShowPasscodeModal(false);
       setPasscodeInput("");
     } catch (err: any) {
@@ -193,7 +290,7 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
-      await logout();
+      await signOut(auth);
     } catch (err) {
       console.error("Sign out error:", err);
     }
@@ -208,20 +305,17 @@ export default function App() {
     }
     try {
       await saveProjectToFirestore(savedProject);
+      if (editingProject) {
+        // Edit
+        setProjects((prev) => prev.map((p) => (p.id === savedProject.id ? savedProject : p)));
+      } else {
+        // Create new
+        setProjects((prev) => [savedProject, ...prev]);
+      }
+      setEditingProject(null);
     } catch (err) {
       console.error("Firestore sync failure during save:", err);
-      setFirebaseError("Offline sync failed - local update only");
     }
-    
-    // Always update local state
-    if (editingProject) {
-      // Edit
-      setProjects((prev) => prev.map((p) => (p.id === savedProject.id ? savedProject : p)));
-    } else {
-      // Create new
-      setProjects((prev) => [savedProject, ...prev]);
-    }
-    setEditingProject(null);
   };
 
   const handleEditProject = (project: Project) => {
@@ -240,12 +334,10 @@ export default function App() {
     }
     try {
       await deleteProjectFromFirestore(id);
+      setProjects((prev) => prev.filter((p) => p.id !== id));
     } catch (err) {
       console.error("Firestore sync failure during delete:", err);
-      setFirebaseError("Offline sync failed - local update only");
     }
-    // Always filter out from local state so the UI responds immediately!
-    setProjects((prev) => prev.filter((p) => p.id !== id));
   };
 
   const handleAddNewClick = () => {
@@ -270,16 +362,103 @@ export default function App() {
     }
     try {
       setIsLoadingProjects(true);
-      const defaultProjects = await resetProjects(projects);
-      setProjects(defaultProjects);
-    } catch (err) {
-      console.error("Firestore sync failure during reset:", err);
+      // Clear Firestore projects first
+      for (const p of projects) {
+        await deleteProjectFromFirestore(p.id);
+      }
+      // Re-seed original INITIAL_PROJECTS
+      for (const p of INITIAL_PROJECTS) {
+        await saveProjectToFirestore(p);
+      }
       setProjects(INITIAL_PROJECTS);
-    } finally {
-      // Always reset local state to INITIAL_PROJECTS
       setActiveCategory("ALL");
       setShowConfirmRestore(false);
+    } catch (err) {
+      console.error("Firestore sync failure during reset:", err);
+    } finally {
       setIsLoadingProjects(false);
+    }
+  };
+
+  // --- User Directory Handlers ---
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUserActionError("");
+    const cleanUsername = newUsername.trim().toLowerCase();
+    const cleanEmail = newUserEmail.trim().toLowerCase();
+
+    if (!cleanUsername || !cleanEmail) {
+      setUserActionError("USERNAME AND EMAIL ARE REQUIRED");
+      return;
+    }
+
+    try {
+      const newUser: UserDoc = {
+        id: cleanUsername,
+        username: cleanUsername,
+        email: cleanEmail,
+        role: newUserRole,
+        isAdmin: newUserRole === "admin",
+        createdAt: new Date().toISOString()
+      };
+
+      await saveUserToFirestore(newUser);
+      
+      // Update local state list
+      setUsersList((prev) => {
+        const filtered = prev.filter((u) => u.username !== cleanUsername);
+        return [newUser, ...filtered];
+      });
+
+      setNewUsername("");
+      setNewUserEmail("");
+    } catch (err: any) {
+      console.error("Error creating user:", err);
+      setUserActionError(err.message || "COULD NOT CREATE USER IN FIRESTORE");
+    }
+  };
+
+  const handleToggleAdmin = async (targetUser: UserDoc) => {
+    try {
+      const updatedRole: "admin" | "viewer" = targetUser.role === "admin" ? "viewer" : "admin";
+      const updatedUser: UserDoc = {
+        ...targetUser,
+        role: updatedRole,
+        isAdmin: updatedRole === "admin"
+      };
+
+      await saveUserToFirestore(updatedUser);
+
+      // Update local state list
+      setUsersList((prev) =>
+        prev.map((u) => (u.username === targetUser.username ? updatedUser : u))
+      );
+    } catch (err) {
+      console.error("Error toggling user admin role:", err);
+    }
+  };
+
+  const handleDeleteUser = async (username: string) => {
+    // For safety, don't allow deleting yourself
+    const currentUsername = adminUser?.email?.split("@")[0] || "";
+    if (
+      username.toLowerCase() === currentUsername.toLowerCase() || 
+      username === "kimkapuan23" || 
+      username === "kimkapuant23"
+    ) {
+      setUserActionError("PROTECTED ACCOUNT: CANNOT REMOVE INTEGRAL CREW MEMBERS OR YOURSELF.");
+      return;
+    }
+
+    try {
+      const { deleteDoc, doc } = await import("firebase/firestore");
+      await deleteDoc(doc(db, "users", username));
+
+      // Update local state list
+      setUsersList((prev) => prev.filter((u) => u.username !== username));
+    } catch (err: any) {
+      console.error("Error deleting user document:", err);
+      setUserActionError(err.message || "COULD NOT DELETE USER IN FIRESTORE");
     }
   };
 
@@ -294,7 +473,8 @@ export default function App() {
 
   const featuredProjects = projects.filter((p) => p.featured);
   const activeFeaturedProjects = featuredProjects.length > 0 ? featuredProjects : (projects.length > 0 ? [projects[0]] : []);
-  const regularProjects = filteredProjects;
+  const featuredIds = new Set(activeFeaturedProjects.map((p) => p.id));
+  const regularProjects = filteredProjects.filter((p) => !featuredIds.has(p.id));
 
   // Safeguard carouselIndex against out-of-bounds errors (e.g. if projects are unpinned)
   useEffect(() => {
@@ -440,17 +620,17 @@ export default function App() {
               {/* Theme Toggle Button */}
               <button
                 onClick={toggleTheme}
-                className="inline-flex items-center justify-center gap-1.5 px-2.5 xs:px-3 py-1.5 border border-neutral-200 dark:border-neutral-800 hover:border-neutral-900 dark:hover:border-neutral-100 text-xs font-mono tracking-widest uppercase transition-all duration-300 rounded-xs cursor-pointer"
+                className="flex items-center space-x-1.5 px-3 py-1.5 border border-neutral-200 dark:border-neutral-800 hover:border-neutral-900 dark:hover:border-neutral-100 text-xs font-mono tracking-widest uppercase transition-all duration-300 rounded-xs cursor-pointer"
                 title={`Switch to ${theme === "light" ? "Dark" : "Light"} Mode`}
               >
                 {theme === "light" ? (
                   <>
-                    <Moon className="w-3.5 h-3.5 flex-shrink-0" />
+                    <Moon className="w-3.5 h-3.5" />
                     <span className="hidden xs:inline text-[11px]">DARK_MODE</span>
                   </>
                 ) : (
                   <>
-                    <Sun className="w-3.5 h-3.5 flex-shrink-0" />
+                    <Sun className="w-3.5 h-3.5" />
                     <span className="hidden xs:inline text-[11px]">LIGHT_MODE</span>
                   </>
                 )}
@@ -465,7 +645,7 @@ export default function App() {
           <div className="flex-1 space-y-6 max-w-2xl text-center md:text-left">
             <div className="inline-flex items-center space-x-2 px-2.5 py-1 text-[10px] font-mono tracking-widest uppercase border border-neutral-200 dark:border-neutral-800 text-neutral-500 dark:text-neutral-400">
               <span className="w-1.5 h-1.5 rounded-full bg-neutral-900 dark:bg-white animate-pulse" />
-              <span>Live Projects by Cyber Samurai</span>
+              <span>STRICT OFF-LINE PERSISTENCE ACTIVE</span>
             </div>
 
             <div>
@@ -474,7 +654,7 @@ export default function App() {
               </h2>
               <div className="mt-3 flex items-center gap-4">
                 <div className="h-[1px] w-12 bg-neutral-900 dark:bg-neutral-100"></div>
-                <p className="text-[11px] uppercase tracking-[0.4em] font-medium text-neutral-500 dark:text-neutral-400">Security by Design</p>
+                <p className="text-[11px] uppercase tracking-[0.4em] font-medium text-neutral-500 dark:text-neutral-400">Web Craftsman & Creative Developer</p>
               </div>
             </div>
 
@@ -487,7 +667,7 @@ export default function App() {
             {/* Small action buttons */}
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 pt-2">
               <a
-                href="#bushido"
+                href="#virtues-codex"
                 className="inline-flex items-center space-x-2 px-4 py-2.5 text-xs font-mono uppercase tracking-widest border border-neutral-200 dark:border-neutral-800 hover:border-neutral-900 dark:hover:border-neutral-100 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors rounded-xs"
               >
                 <BookOpen className="w-3.5 h-3.5" />
@@ -498,23 +678,32 @@ export default function App() {
 
           {/* Right Hero: Giant Calligraphic Monogram & Live Stats */}
           <div className="w-full md:w-80 flex flex-col space-y-4">
-            <div className="relative border border-neutral-200 dark:border-neutral-800 p-6 bg-neutral-50/50 dark:bg-neutral-950/20 backdrop-blur-xs flex flex-col justify-between h-56 group overflow-hidden z-0">
-              {/* Background watermark - sent backwards, color opposite of background */}
-              <div className="absolute right-0 bottom-0 translate-y-4 translate-x-4 text-9xl font-display font-black text-black/10 dark:text-white/10 pointer-events-none select-none transition-transform duration-700 group-hover:scale-105 z-[-1]">
+            <div className="relative border border-neutral-200 dark:border-neutral-800 p-6 bg-neutral-50/50 dark:bg-neutral-950/20 backdrop-blur-xs flex flex-col justify-between h-56 group overflow-hidden">
+              {/* Background watermark - opposite color and behind text */}
+              <div className="absolute right-0 bottom-0 translate-y-4 translate-x-4 text-9xl font-display font-black text-neutral-900/10 dark:text-neutral-100/10 pointer-events-none select-none transition-transform duration-700 group-hover:scale-105 z-0">
                 武
               </div>
 
               <div className="relative z-10">
-                <span className="text-[10px] font-mono tracking-widest text-neutral-400 uppercase">// DEPLOYED PROJECTS</span>
-                <div className="mt-5">
-                  <p className="text-5xl font-display font-bold text-neutral-900 dark:text-white leading-none">{projects.length}</p>
-                  <p className="text-[9px] font-mono text-neutral-400 uppercase tracking-wider mt-2.5">PROJECTS IN BLADE</p>
+                <span className="text-[10px] font-mono tracking-widest text-neutral-400 uppercase">// ACTIVE ARSENAL STATS</span>
+                <div className="mt-4 grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-3xl font-display font-bold">{projects.length}</p>
+                    <p className="text-[9px] font-mono text-neutral-400 uppercase tracking-wider">PROJECTS IN BLADE</p>
+                  </div>
+                  <div>
+                    <p className="text-3xl font-display font-bold">
+                      {projects.filter((p) => p.badge === "SAMURAI" || p.badge === "SHOGUN").length}
+                    </p>
+                    <p className="text-[9px] font-mono text-neutral-400 uppercase tracking-wider">ELITE GRADES</p>
+                  </div>
                 </div>
               </div>
 
               {/* Micro code line snippet */}
-              <div className="border-t border-neutral-200 dark:border-neutral-800 pt-4 text-[9px] font-mono text-neutral-500 dark:text-neutral-400 flex items-center relative z-10">
+              <div className="border-t border-neutral-200 dark:border-neutral-800 pt-4 text-[9px] font-mono text-neutral-500 dark:text-neutral-400 flex items-center justify-between relative z-10">
                 <span>SYSTEM: COMPLIANT</span>
+                <span>UTC: {new Date().toISOString().slice(11, 19)}</span>
               </div>
             </div>
 
@@ -542,7 +731,7 @@ export default function App() {
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
               <div>
                 <span className="text-[10px] font-mono tracking-widest text-neutral-400 uppercase">// SUPREME WORKPIECE CAROUSEL</span>
-                <h3 className="font-display text-2xl font-bold uppercase tracking-tight">FEATURED PROJECTS OF CHOICE</h3>
+                <h3 className="font-display text-2xl font-bold uppercase tracking-tight">FEATURED WEAPONS OF CHOICE</h3>
               </div>
               
               {/* Carousel Indicators & Controls */}
@@ -595,30 +784,8 @@ export default function App() {
             <div
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={() => setIsHovered(false)}
-              className="relative w-full group/carousel"
+              className="relative overflow-hidden w-full"
             >
-              {/* Left Navigation Arrow */}
-              {activeFeaturedProjects.length > 1 && (
-                <button
-                  onClick={handlePrevFeatured}
-                  className="absolute left-2 md:-left-6 top-1/2 -translate-y-1/2 z-40 p-2.5 rounded-full border border-neutral-200 dark:border-neutral-800 bg-white/90 dark:bg-black/90 text-neutral-800 dark:text-neutral-200 hover:bg-neutral-950 hover:text-white dark:hover:bg-neutral-100 dark:hover:text-black transition-all duration-200 shadow-md md:opacity-0 md:group-hover/carousel:opacity-100 cursor-pointer active:scale-95 flex items-center justify-center"
-                  title="Previous Project"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-              )}
-
-              {/* Right Navigation Arrow */}
-              {activeFeaturedProjects.length > 1 && (
-                <button
-                  onClick={handleNextFeatured}
-                  className="absolute right-2 md:-right-6 top-1/2 -translate-y-1/2 z-40 p-2.5 rounded-full border border-neutral-200 dark:border-neutral-800 bg-white/90 dark:bg-black/90 text-neutral-800 dark:text-neutral-200 hover:bg-neutral-950 hover:text-white dark:hover:bg-neutral-100 dark:hover:text-black transition-all duration-200 shadow-md md:opacity-0 md:group-hover/carousel:opacity-100 cursor-pointer active:scale-95 flex items-center justify-center"
-                  title="Next Project"
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-              )}
-
               <BambooFrame isFeatured={true} className="w-full">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch relative min-h-[380px] lg:min-h-[420px]">
                   
@@ -672,7 +839,7 @@ export default function App() {
                                   rel="noopener noreferrer"
                                   className="inline-flex items-center space-x-2 px-5 py-2 text-xs font-mono font-semibold tracking-wider uppercase border border-neutral-950 dark:border-neutral-100 bg-neutral-950 text-white dark:bg-neutral-100 dark:text-black hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-all duration-150 rounded-xs"
                                 >
-                                  <span>OPEN APPLICATION</span>
+                                  <span>RUN APPLICATION</span>
                                   <ArrowUpRight className="w-3.5 h-3.5" />
                                 </a>
                               )}
@@ -694,7 +861,7 @@ export default function App() {
                                   className="px-3 py-2 text-xs font-mono uppercase tracking-wider border border-neutral-200 dark:border-neutral-800 hover:border-neutral-900 dark:hover:border-neutral-200 text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors ml-auto cursor-pointer"
                                   title="Edit project specs"
                                 >
-                                  EDIT
+                                  RE-FORGE
                                 </button>
                               )}
                             </div>
@@ -726,8 +893,8 @@ export default function App() {
                               <div className="absolute inset-0 bg-neutral-950/15 dark:bg-neutral-950/30 mix-blend-multiply" />
                               
                               <div className="absolute bottom-4 right-4 text-right flex flex-col items-end bg-black/75 backdrop-blur-xs px-2.5 py-1.5 border border-neutral-800 rounded-xs select-none">
-                                <span className="text-[7px] font-mono tracking-widest text-neutral-400">PROJECT STATUS</span>
-                                <span className="text-[9px] font-mono text-emerald-400 uppercase font-bold">[ COMPLETED ]</span>
+                                <span className="text-[7px] font-mono tracking-widest text-neutral-400">ARTIFACT VERIFIED</span>
+                                <span className="text-[9px] font-mono text-emerald-400 uppercase font-bold">[ CERTIFIED ]</span>
                               </div>
                               
                               <div className="absolute bottom-4 left-4 bg-black/75 backdrop-blur-xs px-2.5 py-1.5 border border-neutral-800 rounded-xs select-none">
@@ -834,7 +1001,7 @@ export default function App() {
                       : "border-neutral-200 dark:border-neutral-800 hover:border-neutral-900 dark:hover:border-neutral-400 text-neutral-500 dark:text-neutral-400"
                   }`}
                 >
-                  {cat === "ALL" ? "ALL PROJECTS" : cat.toUpperCase()}
+                  {cat === "ALL" ? "ALL WEAPONS" : cat.toUpperCase()}
                 </button>
               ))}
             </div>
@@ -915,7 +1082,7 @@ export default function App() {
 
         {/* Virtues Codex Section */}
         <section
-          id="bushido"
+          id="virtues-codex"
           className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 border-t border-neutral-100 dark:border-neutral-900 w-full relative overflow-hidden"
         >
           {/* Falling Cherry Blossom Petals Background Animation */}
@@ -955,7 +1122,7 @@ export default function App() {
           <div className="relative z-10 text-center md:text-left mb-10">
             <span className="text-[10px] font-mono tracking-widest text-neutral-400 uppercase">// CODE OF THE CHERRY BLOSSOM</span>
             <h3 className="font-display text-2xl font-bold uppercase tracking-tight text-neutral-900 dark:text-white">
-              Our Bushido is the code we live by
+              THE SEVEN VIRTUES OF THE DIGITAL RONIN
             </h3>
             <p className="text-xs text-neutral-500 font-sans mt-1">
               Each virtue blooms as a golden flower on our tree. Tap a flower to reveal its deep philosophical code.
@@ -1455,7 +1622,7 @@ export default function App() {
               </div>
 
               <div className="space-y-6 relative z-10 max-w-lg">
-                <span className="text-[10px] font-mono tracking-widest text-neutral-400">[ {selectedVirtue.japaneseTitle} ]</span>
+                <span className="text-[10px] font-mono tracking-widest text-neutral-400 uppercase">[ BUSHIDO DIRECTIVE ]</span>
                 <div className="space-y-2">
                   <h4 className="font-display text-4xl font-extrabold uppercase tracking-tight text-neutral-900 dark:text-white">
                     {selectedVirtue.romaji}
@@ -1476,6 +1643,178 @@ export default function App() {
             </div>
           </div>
         </section>
+
+        {/* Bushido Crew / User Management Section - only visible to admins */}
+        {isAdmin && (
+          <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 border-t border-neutral-100 dark:border-neutral-900 bg-neutral-50/5 dark:bg-neutral-950/5 relative z-10">
+            <div className="space-y-8">
+              <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div className="space-y-2">
+                  <div className="inline-flex items-center space-x-2 px-2.5 py-0.5 text-[9px] font-mono tracking-widest uppercase border border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/5">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>ADMINISTRATIVE ZONE ACTIVE</span>
+                  </div>
+                  <h3 className="text-3xl font-extrabold tracking-tight uppercase font-display text-neutral-900 dark:text-white">
+                    Bushido Crew Directory
+                  </h3>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 max-w-xl">
+                    Live management of accounts in the <code className="font-mono bg-neutral-100 dark:bg-neutral-900 px-1 py-0.5 rounded text-[11px]">users</code> Firestore collection. Elevate or dismiss members to assign web editing permissions.
+                  </p>
+                </div>
+              </div>
+
+              {/* Grid: Left is directory list, Right is Recruit warrior form */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                
+                {/* Users List Table */}
+                <div className="lg:col-span-8 border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black p-6 rounded-sm space-y-4">
+                  <div className="flex items-center justify-between border-b border-neutral-150 dark:border-neutral-850 pb-3">
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-400">
+                      // {usersList.length} ACTIVE CLOUD DOCUMENTS
+                    </span>
+                    {isLoadingUsers && (
+                      <span className="text-[9px] font-mono text-amber-500 uppercase tracking-widest animate-pulse">
+                        SYNCING WITH FIRESTORE...
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-neutral-100 dark:border-neutral-900 text-[10px] font-mono text-neutral-400 uppercase tracking-wider">
+                          <th className="py-2.5">Username</th>
+                          <th className="py-2.5">Email</th>
+                          <th className="py-2.5">Role</th>
+                          <th className="py-2.5 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-100 dark:divide-neutral-900 text-xs font-sans">
+                        {usersList.length === 0 ? (
+                          <tr>
+                            <td colSpan={4} className="py-8 text-center text-neutral-400 font-mono text-[11px]">
+                              NO ACTIVE CREW DOCUMENTED in Firestore collection.
+                            </td>
+                          </tr>
+                        ) : (
+                          usersList.map((user) => {
+                            const isSelf = adminUser?.email?.toLowerCase() === user.email.toLowerCase();
+                            return (
+                              <tr key={user.username} className="hover:bg-neutral-50/50 dark:hover:bg-neutral-950/20 transition-colors">
+                                <td className="py-3.5 font-mono font-medium text-neutral-900 dark:text-neutral-100">
+                                  {user.username}
+                                </td>
+                                <td className="py-3.5 text-neutral-500 dark:text-neutral-400">
+                                  {user.email}
+                                </td>
+                                <td className="py-3.5">
+                                  <span className={`inline-flex items-center px-2 py-0.5 text-[9px] font-mono font-semibold uppercase rounded-xs ${
+                                    user.role === "admin" || user.isAdmin
+                                      ? "bg-amber-400/10 border border-amber-400/30 text-amber-600 dark:text-amber-400"
+                                      : "bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-neutral-500 dark:text-neutral-400"
+                                  }`}>
+                                    {user.role === "admin" || user.isAdmin ? "ADMIN" : "MEMBER"}
+                                  </span>
+                                </td>
+                                <td className="py-3.5 text-right space-x-2">
+                                  <button
+                                    onClick={() => handleToggleAdmin(user)}
+                                    className="px-2.5 py-1 text-[9px] font-mono uppercase tracking-widest border border-neutral-200 dark:border-neutral-800 hover:border-neutral-900 dark:hover:border-neutral-100 text-neutral-600 dark:text-neutral-400 rounded-xs transition-colors cursor-pointer"
+                                    title="Toggle Admin Privilege"
+                                  >
+                                    TOGGLE_ROLE
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteUser(user.username)}
+                                    disabled={isSelf}
+                                    className={`p-1 border text-neutral-400 hover:text-red-500 dark:hover:text-red-400 rounded-xs transition-colors inline-flex items-center justify-center cursor-pointer ${
+                                      isSelf ? "opacity-30 cursor-not-allowed" : "border-neutral-200 dark:border-neutral-800 hover:border-red-500/20"
+                                    }`}
+                                    title={isSelf ? "Cannot dismiss yourself" : "Dismiss Warrior"}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Recruit Form Card */}
+                <div className="lg:col-span-4 border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black p-6 rounded-sm space-y-4">
+                  <div className="border-b border-neutral-100 dark:border-neutral-900 pb-3 flex items-center space-x-2">
+                    <UserPlus className="w-4 h-4 text-amber-500" />
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-400">
+                      // RECRUIT NEW WARRIOR
+                    </span>
+                  </div>
+
+                  <form onSubmit={handleAddUser} className="space-y-4">
+                    <div className="space-y-1">
+                      <label className="block text-[9px] font-mono text-neutral-400 uppercase tracking-widest">
+                        Username
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={newUsername}
+                        onChange={(e) => setNewUsername(e.target.value)}
+                        placeholder="e.g. kimkapuan"
+                        className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 focus:outline-hidden focus:border-neutral-950 dark:focus:border-neutral-100 text-xs font-sans text-neutral-900 dark:text-neutral-100"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[9px] font-mono text-neutral-400 uppercase tracking-widest">
+                        Email Address
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        value={newUserEmail}
+                        onChange={(e) => setNewUserEmail(e.target.value)}
+                        placeholder="e.g. kimkapuan@cybersamurai.co.uk"
+                        className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 focus:outline-hidden focus:border-neutral-950 dark:focus:border-neutral-100 text-xs font-sans text-neutral-900 dark:text-neutral-100"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[9px] font-mono text-neutral-400 uppercase tracking-widest">
+                        Authority Level
+                      </label>
+                      <select
+                        value={newUserRole}
+                        onChange={(e) => setNewUserRole(e.target.value as "admin" | "viewer")}
+                        className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 focus:outline-hidden focus:border-neutral-950 dark:focus:border-neutral-100 text-xs font-sans text-neutral-900 dark:text-neutral-100"
+                      >
+                        <option value="admin">ADMIN (Can edit website)</option>
+                        <option value="viewer">VIEWER (Read-only access)</option>
+                      </select>
+                    </div>
+
+                    {userActionError && (
+                      <p className="text-[10px] font-mono text-red-500 uppercase tracking-wider leading-relaxed">
+                        {userActionError}
+                      </p>
+                    )}
+
+                    <button
+                      type="submit"
+                      className="w-full py-2.5 bg-neutral-950 dark:bg-neutral-100 text-neutral-100 dark:text-neutral-950 text-xs font-mono font-bold uppercase tracking-widest hover:bg-neutral-900 dark:hover:bg-white transition-all cursor-pointer"
+                    >
+                      ADD TO FIRESTORE
+                    </button>
+                  </form>
+                </div>
+
+              </div>
+            </div>
+          </section>
+        )}
 
       </div>
 
@@ -1555,15 +1894,18 @@ export default function App() {
                     </div>
                     <span className="text-[10px] font-mono tracking-widest text-red-600 dark:text-red-400 uppercase font-bold">// SECURE SHIELD AUTHENTICATION</span>
                     <h3 className="font-display text-xl font-bold uppercase tracking-tight text-neutral-900 dark:text-white">
-                      SECURE ZONE
+                      ADMINISTRATOR COMMAND
                     </h3>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400 max-w-xs leading-relaxed font-sans">
+                      Authenticating grants write permissions to forge, edit, and discard creations.
+                    </p>
                   </div>
 
                   {/* Input fields */}
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <label className="block text-[10px] font-mono uppercase tracking-widest text-neutral-400 dark:text-neutral-500">
-                        Username
+                        Admin Username
                       </label>
                       <input
                         type="text"
@@ -1572,7 +1914,7 @@ export default function App() {
                           setUsernameInput(e.target.value);
                           setPasscodeError("");
                         }}
-                        placeholder="///////"
+                        placeholder="e.g. kimkapuan23"
                         className="w-full px-3.5 py-2.5 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 text-neutral-900 dark:text-white text-sm font-mono tracking-wider rounded-xs focus:outline-hidden focus:border-neutral-900 dark:focus:border-white transition-colors"
                       />
                     </div>

@@ -6,7 +6,7 @@ export interface Project {
   tech: string[];
   demoUrl: string;
   codeUrl: string;
-  badge: "Red Team" | "Blue Team" | "Automation" | "Cyber Games" | "Architecture";
+  badge: "SAMURAI" | "SHINOBI" | "SHOGUN" | "RONIN" | "SABER";
   role: string;
   featured: boolean;
   date: string;
@@ -16,4 +16,13 @@ export interface Project {
 export interface ZenQuote {
   text: string;
   author: string;
+}
+
+export interface UserDoc {
+  id: string; // This can be the username or UID
+  username: string;
+  email: string;
+  role: "admin" | "viewer";
+  isAdmin: boolean;
+  createdAt?: string;
 }
