@@ -749,16 +749,10 @@ export default function App() {
 
               <div className="relative z-10">
                 <span className="text-[10px] font-mono tracking-widest text-neutral-400 uppercase">// ACTIVE ARSENAL STATS</span>
-                <div className="mt-4 grid grid-cols-2 gap-4">
+                <div className="mt-4">
                   <div>
-                    <p className="text-3xl font-display font-bold">{projects.length}</p>
-                    <p className="text-[9px] font-mono text-neutral-400 uppercase tracking-wider">PROJECTS IN BLADE</p>
-                  </div>
-                  <div>
-                    <p className="text-3xl font-display font-bold">
-                      {projects.filter((p) => p.badge === "SAMURAI" || p.badge === "SHOGUN").length}
-                    </p>
-                    <p className="text-[9px] font-mono text-neutral-400 uppercase tracking-wider">ELITE GRADES</p>
+                    <p className="text-[50px] font-display font-black leading-none text-neutral-900 dark:text-neutral-100">{projects.length}</p>
+                    <p className="text-[9px] font-mono text-neutral-400 dark:text-neutral-500 uppercase tracking-wider mt-2">PROJECTS IN BLADE</p>
                   </div>
                 </div>
               </div>
