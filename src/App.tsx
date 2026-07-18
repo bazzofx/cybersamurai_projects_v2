@@ -619,19 +619,24 @@ export default function App() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             
             {/* Logo / Brand signoff with Editorial Outline Style */}
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 flex items-center justify-center bg-neutral-900 dark:bg-white text-white dark:text-black font-display font-black text-sm tracking-tighter">
+            <a
+              href="https://cybersamurai.co.uk"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center space-x-3 group cursor-pointer"
+            >
+              <div className="w-8 h-8 flex items-center justify-center bg-neutral-900 dark:bg-white text-white dark:text-black font-display font-black text-sm tracking-tighter transition-transform duration-200 group-hover:scale-105">
                 浪
               </div>
               <div>
-                <h1 className="font-display font-black text-base tracking-tight uppercase text-neutral-900 dark:text-neutral-100">
+                <h1 className="font-display font-black text-base tracking-tight uppercase text-neutral-900 dark:text-neutral-100 transition-colors duration-200 group-hover:text-neutral-600 dark:group-hover:text-neutral-300">
                   Projects
                 </h1>
                 <p className="text-[9px] font-mono tracking-widest text-neutral-400 dark:text-neutral-500 uppercase">
                   // PORTFOLIO MANIFESTO
                 </p>
               </div>
-            </div>
+            </a>
 
             {/* Controls */}
             <div className="flex items-center space-x-2">
@@ -653,10 +658,10 @@ export default function App() {
                     setShowPasscodeModal(true);
                   }}
                   className="inline-flex items-center space-x-1.5 px-2.5 py-1 text-[10px] font-mono border border-neutral-300 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:border-neutral-450 dark:hover:border-neutral-750 rounded-xs transition-all cursor-pointer bg-neutral-50/50 dark:bg-neutral-950/20"
-                  title="Authenticate as administrator"
+                  title="Admin Portal"
                 >
                   <Unlock className="w-3 h-3" />
-                  <span>ADMIN_LOGIN</span>
+                  <span>Admin Portal</span>
                 </button>
               )}
 
@@ -1696,41 +1701,16 @@ export default function App() {
       </div>
 
       {/* Footer */}
-      <footer className="border-t border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black py-12 relative z-10 overflow-hidden select-none">
-        
-        {/* Subtle decorative bamboo grove silhouette as SVG at bottom */}
-        <div className="absolute bottom-0 left-0 w-full h-16 pointer-events-none opacity-[0.03] dark:opacity-[0.06] flex items-end justify-around">
-          <svg className="w-16 h-12 text-current fill-current" viewBox="0 0 50 50">
-            <path d="M 10 50 Q 8 25, 5 0 T 0 50 Q 15 25, 20 50 Z" />
-          </svg>
-          <svg className="w-20 h-16 text-current fill-current" viewBox="0 0 50 50">
-            <path d="M 25 50 Q 22 25, 18 0 T 10 50 Q 35 25, 40 50 Z" />
-          </svg>
-          <svg className="w-12 h-10 text-current fill-current" viewBox="0 0 50 50">
-            <path d="M 5 50 Q 4 30, 2 0 T 0 50 Z" />
-          </svg>
-          <svg className="w-24 h-20 text-current fill-current" viewBox="0 0 50 50">
-            <path d="M 40 50 Q 35 20, 30 0 T 20 50 Q 45 30, 48 50 Z" />
-          </svg>
-        </div>
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
-          <div className="flex items-center space-x-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span className="text-[10px] font-mono tracking-widest text-neutral-400 dark:text-neutral-500 uppercase">
-              LOCAL SANDBOX INTEGRITY: ONLINE
-            </span>
-          </div>
-
-          <p className="text-[10px] font-mono text-neutral-400 dark:text-neutral-500 uppercase text-center">
-            &copy; 1590 - {new Date().getFullYear()} Cyber Ronin. Styled in high contrast monochrome.
-          </p>
-
-          <div className="text-[10px] font-mono text-neutral-400 dark:text-neutral-500 flex items-center space-x-3">
-            <span>USER: musicninja2022</span>
-            <span>|</span>
-            <span>STRICTLY OFF-LINE PERSISTENCE</span>
-          </div>
+      <footer className="border-t border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black py-10 relative z-10 select-none">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-center relative z-10">
+          <a
+            href="https://cybersamurai.co.uk"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-mono tracking-widest text-neutral-500 hover:text-neutral-950 dark:text-neutral-400 dark:hover:text-white transition-colors duration-200 uppercase font-medium hover:underline decoration-1 underline-offset-4"
+          >
+            Cyber Security - Automation - Assessment
+          </a>
         </div>
       </footer>
 
@@ -1771,11 +1751,8 @@ export default function App() {
                     </div>
                     <span className="text-[10px] font-mono tracking-widest text-red-600 dark:text-red-400 uppercase font-bold">// SECURE SHIELD AUTHENTICATION</span>
                     <h3 className="font-display text-xl font-bold uppercase tracking-tight text-neutral-900 dark:text-white">
-                      ADMINISTRATOR COMMAND
+                      Admin Portal
                     </h3>
-                    <p className="text-xs text-neutral-500 dark:text-neutral-400 max-w-xs leading-relaxed font-sans">
-                      Authenticating grants write permissions to forge, edit, and discard creations.
-                    </p>
                   </div>
 
                   {/* Input fields */}
@@ -1791,7 +1768,7 @@ export default function App() {
                           setUsernameInput(e.target.value);
                           setPasscodeError("");
                         }}
-                        placeholder="e.g. kimkapuan23"
+                        placeholder="//////"
                         className="w-full px-3.5 py-2.5 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 text-neutral-900 dark:text-white text-sm font-mono tracking-wider rounded-xs focus:outline-hidden focus:border-neutral-900 dark:focus:border-white transition-colors"
                       />
                     </div>
